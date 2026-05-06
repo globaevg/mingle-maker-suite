@@ -89,6 +89,7 @@ export type Database = {
           created_at: string
           event_id: string
           id: string
+          promoted_at: string | null
           status: Database["public"]["Enums"]["rsvp_status"]
           ticket_code: string
           user_id: string
@@ -98,6 +99,7 @@ export type Database = {
           created_at?: string
           event_id: string
           id?: string
+          promoted_at?: string | null
           status?: Database["public"]["Enums"]["rsvp_status"]
           ticket_code?: string
           user_id: string
@@ -107,6 +109,7 @@ export type Database = {
           created_at?: string
           event_id?: string
           id?: string
+          promoted_at?: string | null
           status?: Database["public"]["Enums"]["rsvp_status"]
           ticket_code?: string
           user_id?: string
@@ -130,6 +133,7 @@ export type Database = {
         Args: { _event_id: string; _user_id: string }
         Returns: boolean
       }
+      promote_waitlist: { Args: { _event_id: string }; Returns: undefined }
     }
     Enums: {
       rsvp_status: "confirmed" | "waitlist" | "cancelled"

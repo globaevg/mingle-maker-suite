@@ -22,7 +22,7 @@ function TicketsPage() {
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase.from("rsvps")
-        .select("id, status, ticket_code, checked_in_at, events(id, title, starts_at, location, ends_at)")
+        .select("id, status, ticket_code, checked_in_at, promoted_at, events(id, title, starts_at, location, ends_at)")
         .eq("user_id", user!.id)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
@@ -56,7 +56,12 @@ function TicketsPage() {
                   {r.events.location && <div className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5" />{r.events.location}</div>}
                 </div>
               </div>
-              <span className={`rounded px-2 py-0.5 text-xs ${r.status === "confirmed" ? "bg-accent/15 text-accent" : "bg-muted"}`}>{r.status}</span>
+              <div className="flex flex-col items-end gap-1">
+                <span className={`rounded px-2 py-0.5 text-xs ${r.status === "confirmed" ? "bg-accent/15 text-accent" : "bg-muted"}`}>{r.status}</span>
+                {r.promoted_at && r.status === "confirmed" && (
+                  <span className="rounded bg-accent/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">Promoted from waitlist</span>
+                )}
+              </div>
             </div>
             <div className="mt-5 flex flex-col items-center">
               <div className="rounded-lg bg-white p-3"><QRCodeSVG value={r.ticket_code} size={140} /></div>

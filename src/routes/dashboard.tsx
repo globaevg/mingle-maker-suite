@@ -135,7 +135,9 @@ function HostedEventCard({ event }: { event: any }) {
           <Link to="/events/$id" params={{ id: event.id }} className="font-display text-lg font-semibold hover:text-accent">{event.title}</Link>
           <div className="text-sm text-muted-foreground">{format(new Date(event.starts_at), "PPP · p")} · {event.location}</div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link to="/events/$id/edit" params={{ id: event.id }}><Button variant="outline" size="sm">Edit</Button></Link>
+          <Link to="/checkin/$eventId" params={{ eventId: event.id }}><Button variant="outline" size="sm">Check-in</Button></Link>
           <Button variant="outline" size="sm" onClick={exportCsv}><Download className="mr-1 h-3.5 w-3.5" />CSV</Button>
           <Button variant="outline" size="sm" onClick={() => setOpen(!open)}>{open ? "Hide" : "Manage"}</Button>
         </div>

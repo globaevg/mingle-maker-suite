@@ -13,10 +13,12 @@ export function SiteHeader() {
           Gather
         </Link>
         <nav className="flex items-center gap-1 sm:gap-2">
-          <Link to="/" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">Browse</Link>
+          <Link to="/explore" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">Explore</Link>
           {user ? (
             <>
+              <Link to="/tickets" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">My tickets</Link>
               <Link to="/dashboard" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">Dashboard</Link>
+              <Link to="/profile" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">Profile</Link>
               <Link to="/events/new"><Button size="sm">Host event</Button></Link>
               <Button variant="ghost" size="sm" onClick={() => signOut()}>Sign out</Button>
             </>

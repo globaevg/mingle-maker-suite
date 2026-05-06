@@ -104,8 +104,13 @@ function EventPage() {
             <div className="rounded-xl border bg-card p-5 text-center shadow-sm">
               <div className="flex items-center justify-center gap-2 text-sm font-semibold">
                 <Ticket className="h-4 w-4 text-accent" />
-                Your ticket {myRsvp.status === "waitlist" && <span className="rounded bg-muted px-2 py-0.5 text-xs">Waitlist</span>}
+                Your ticket
+                {myRsvp.status === "waitlist" && <span className="rounded bg-muted px-2 py-0.5 text-xs">Waitlist</span>}
+                {myRsvp.status === "confirmed" && myRsvp.promoted_at && <span className="rounded bg-accent/15 px-2 py-0.5 text-xs text-accent">Promoted</span>}
               </div>
+              {myRsvp.status === "confirmed" && myRsvp.promoted_at && (
+                <p className="mt-1 text-xs text-accent">A spot opened up — you're in!</p>
+              )}
               <div className="mt-4 inline-block rounded-lg bg-white p-3">
                 <QRCodeSVG value={myRsvp.ticket_code} size={160} />
               </div>

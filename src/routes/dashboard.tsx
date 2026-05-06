@@ -1,0 +1,170 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, Download, Plus, Ticket } from "lucide-react";
+import { format } from "date-fns";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/dashboard")({ component: Dashboard });
+
+function Dashboard() {
+  const { user, loading } = useAuth();
+  const nav = useNavigate();
+  if (!loading && !user) { nav({ to: "/login" }); return null; }
+
+  const { data: hosted } = useQuery({
+    queryKey: ["hosted", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("events")
+        .select("*, rsvps(count)").eq("host_id", user!.id).order("starts_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: myRsvps } = useQuery({
+    queryKey: ["my-rsvps", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("rsvps")
+        .select("id, status, ticket_code, events(id, title, starts_at, location)")
+        .eq("user_id", user!.id).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  return (
+    <div className="container mx-auto max-w-5xl px-4 py-10">
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-3xl font-semibold">Dashboard</h1>
+        <Link to="/events/new"><Button><Plus className="mr-1 h-4 w-4" />New event</Button></Link>
+      </div>
+
+      <Tabs defaultValue="hosting" className="mt-8">
+        <TabsList>
+          <TabsTrigger value="hosting">Hosting</TabsTrigger>
+          <TabsTrigger value="attending">My RSVPs</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="hosting" className="mt-6 space-y-4">
+          {hosted?.length === 0 && <p className="text-muted-foreground">You haven't hosted any events yet.</p>}
+          {hosted?.map((e: any) => (
+            <HostedEventCard key={e.id} event={e} />
+          ))}
+        </TabsContent>
+
+        <TabsContent value="attending" className="mt-6 space-y-3">
+          {myRsvps?.length === 0 && <p className="text-muted-foreground">No RSVPs yet. Find an event to attend!</p>}
+          {myRsvps?.map((r: any) => (
+            <Link key={r.id} to="/events/$id" params={{ id: r.events.id }}
+              className="flex items-center justify-between rounded-xl border bg-card p-4 hover:shadow-sm">
+              <div>
+                <div className="font-medium">{r.events.title}</div>
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5" />{format(new Date(r.events.starts_at), "PPP · p")}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Ticket className="h-4 w-4 text-accent" />
+                <span className="font-mono">{r.ticket_code}</span>
+                <span className={`rounded px-2 py-0.5 text-xs ${r.status === "confirmed" ? "bg-accent/15 text-accent" : r.status === "waitlist" ? "bg-muted" : "bg-destructive/10 text-destructive"}`}>{r.status}</span>
+              </div>
+            </Link>
+          ))}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function HostedEventCard({ event }: { event: any }) {
+  const qc = useQueryClient();
+  const [code, setCode] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const { data: rsvps } = useQuery({
+    queryKey: ["rsvps", event.id],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("rsvps")
+        .select("id, status, ticket_code, checked_in_at, created_at, user_id")
+        .eq("event_id", event.id).order("created_at");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const checkIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const c = code.trim().toUpperCase();
+    if (!c) return;
+    const { data, error } = await supabase.from("rsvps")
+      .update({ checked_in_at: new Date().toISOString() })
+      .eq("event_id", event.id).eq("ticket_code", c).select().maybeSingle();
+    if (error) return toast.error(error.message);
+    if (!data) return toast.error("Ticket not found for this event");
+    toast.success(`Checked in: ${c}`);
+    setCode("");
+    qc.invalidateQueries({ queryKey: ["rsvps", event.id] });
+  };
+
+  const exportCsv = async () => {
+    const { data, error } = await supabase.from("rsvps")
+      .select("ticket_code, status, checked_in_at, created_at").eq("event_id", event.id);
+    if (error) return toast.error(error.message);
+    const rows = [["ticket_code", "status", "checked_in_at", "created_at"], ...data.map(r => [r.ticket_code, r.status, r.checked_in_at ?? "", r.created_at])];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url;
+    a.download = `${event.title.replace(/\W+/g, "-")}-attendees.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="rounded-xl border bg-card p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <Link to="/events/$id" params={{ id: event.id }} className="font-display text-lg font-semibold hover:text-accent">{event.title}</Link>
+          <div className="text-sm text-muted-foreground">{format(new Date(event.starts_at), "PPP · p")} · {event.location}</div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv}><Download className="mr-1 h-3.5 w-3.5" />CSV</Button>
+          <Button variant="outline" size="sm" onClick={() => setOpen(!open)}>{open ? "Hide" : "Manage"}</Button>
+        </div>
+      </div>
+      {open && (
+        <div className="mt-4 border-t pt-4">
+          <form onSubmit={checkIn} className="flex gap-2">
+            <Input placeholder="Enter ticket code" value={code} onChange={(e) => setCode(e.target.value)} className="font-mono uppercase" />
+            <Button type="submit">Check in</Button>
+          </form>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-muted-foreground">
+                <th className="py-2">Ticket</th><th>Status</th><th>Checked in</th>
+              </tr></thead>
+              <tbody>
+                {rsvps?.map(r => (
+                  <tr key={r.id} className="border-t">
+                    <td className="py-2 font-mono">{r.ticket_code}</td>
+                    <td>{r.status}</td>
+                    <td>{r.checked_in_at ? format(new Date(r.checked_in_at), "p") : "—"}</td>
+                  </tr>
+                ))}
+                {rsvps?.length === 0 && <tr><td colSpan={3} className="py-4 text-muted-foreground">No RSVPs yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

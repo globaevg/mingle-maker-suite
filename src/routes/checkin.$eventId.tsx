@@ -5,11 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CheckCircle2, ScanLine } from "lucide-react";
+import { CheckCircle2, ScanLine, AlertTriangle, Undo2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/checkin/$eventId")({ component: CheckinPage });
+
+type LastResult =
+  | { kind: "ok"; code: string; rsvpId: string; checkedInAt: string }
+  | { kind: "duplicate"; code: string; checkedInAt: string }
+  | { kind: "error"; code: string; msg: string };
 
 function CheckinPage() {
   const { eventId } = Route.useParams();
@@ -17,11 +22,9 @@ function CheckinPage() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const [code, setCode] = useState("");
-  const [last, setLast] = useState<{ code: string; ok: boolean; msg: string } | null>(null);
+  const [last, setLast] = useState<LastResult | null>(null);
 
-  useEffect(() => {
-    if (!loading && !user) nav({ to: "/login" });
-  }, [loading, user, nav]);
+  useEffect(() => { if (!loading && !user) nav({ to: "/login" }); }, [loading, user, nav]);
 
   const { data: event } = useQuery({
     queryKey: ["event-meta", eventId],
@@ -70,13 +73,51 @@ function CheckinPage() {
     e.preventDefault();
     const c = code.trim().toUpperCase();
     if (!c) return;
-    const { data, error } = await supabase.from("rsvps")
-      .update({ checked_in_at: new Date().toISOString() })
-      .eq("event_id", eventId).eq("ticket_code", c).select().maybeSingle();
-    if (error) { setLast({ code: c, ok: false, msg: error.message }); toast.error(error.message); }
-    else if (!data) { setLast({ code: c, ok: false, msg: "Ticket not found" }); toast.error("Ticket not found"); }
-    else { setLast({ code: c, ok: true, msg: data.status === "waitlist" ? "Checked in (waitlist)" : "Checked in" }); toast.success(`Checked in ${c}`); }
+
+    // 1) Look up the RSVP first so we can detect duplicates explicitly.
+    const { data: existing, error: lookupErr } = await supabase.from("rsvps")
+      .select("id, status, checked_in_at")
+      .eq("event_id", eventId).eq("ticket_code", c).maybeSingle();
+    if (lookupErr) {
+      setLast({ kind: "error", code: c, msg: lookupErr.message });
+      toast.error(lookupErr.message);
+      setCode("");
+      return;
+    }
+    if (!existing) {
+      setLast({ kind: "error", code: c, msg: "Ticket not found" });
+      toast.error("Ticket not found");
+      setCode("");
+      return;
+    }
+    if (existing.checked_in_at) {
+      // Duplicate scan — DB trigger also blocks overwrite. Show clear message.
+      setLast({ kind: "duplicate", code: c, checkedInAt: existing.checked_in_at });
+      toast.error("Already checked in");
+      setCode("");
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+    const { data: updated, error } = await supabase.from("rsvps")
+      .update({ checked_in_at: nowIso }).eq("id", existing.id).select().maybeSingle();
+    if (error || !updated) {
+      setLast({ kind: "error", code: c, msg: error?.message || "Failed to check in" });
+      toast.error(error?.message || "Failed to check in");
+    } else {
+      setLast({ kind: "ok", code: c, rsvpId: updated.id, checkedInAt: updated.checked_in_at! });
+      toast.success(`Checked in ${c}`);
+    }
     setCode("");
+    qc.invalidateQueries({ queryKey: ["checkin-stats", eventId] });
+  };
+
+  const undoLast = async () => {
+    if (!last || last.kind !== "ok") return;
+    const { error } = await supabase.rpc("undo_checkin", { _rsvp_id: last.rsvpId });
+    if (error) return toast.error(error.message);
+    toast.success(`Undid check-in ${last.code}`);
+    setLast(null);
     qc.invalidateQueries({ queryKey: ["checkin-stats", eventId] });
   };
 
@@ -105,12 +146,26 @@ function CheckinPage() {
       </form>
 
       {last && (
-        <div className={`mt-4 flex items-center gap-3 rounded-xl border p-4 ${last.ok ? "border-accent/40 bg-accent/5 text-accent" : "border-destructive/40 bg-destructive/5 text-destructive"}`}>
-          {last.ok && <CheckCircle2 className="h-5 w-5" />}
-          <div>
-            <div className="font-mono">{last.code}</div>
-            <div className="text-sm">{last.msg}</div>
+        <div className={`mt-4 flex items-center justify-between gap-3 rounded-xl border p-4 ${
+          last.kind === "ok" ? "border-accent/40 bg-accent/5 text-accent"
+          : last.kind === "duplicate" ? "border-amber-500/40 bg-amber-500/5 text-amber-700"
+          : "border-destructive/40 bg-destructive/5 text-destructive"
+        }`}>
+          <div className="flex items-center gap-3">
+            {last.kind === "ok" && <CheckCircle2 className="h-5 w-5" />}
+            {last.kind === "duplicate" && <AlertTriangle className="h-5 w-5" />}
+            <div>
+              <div className="font-mono">{last.code}</div>
+              <div className="text-sm">
+                {last.kind === "ok" && "Checked in"}
+                {last.kind === "duplicate" && `Already checked in at ${format(new Date(last.checkedInAt), "p")} — original time preserved`}
+                {last.kind === "error" && last.msg}
+              </div>
+            </div>
           </div>
+          {last.kind === "ok" && (
+            <Button variant="outline" size="sm" onClick={undoLast}><Undo2 className="mr-1 h-4 w-4" />Undo last scan</Button>
+          )}
         </div>
       )}
     </div>

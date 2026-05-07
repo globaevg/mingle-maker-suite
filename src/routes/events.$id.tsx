@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import { EventFeedback } from "@/components/EventFeedback";
 import { EventGallery } from "@/components/EventGallery";
+import { ReportButton } from "@/components/ReportButton";
 
 export const Route = createFileRoute("/events/$id")({ component: EventPage });
 

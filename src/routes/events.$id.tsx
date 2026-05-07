@@ -78,7 +78,13 @@ function EventPage() {
       </div>
       <div className="mt-8 grid gap-8 md:grid-cols-3">
         <div className="md:col-span-2">
-          <h1 className="font-display text-3xl font-bold sm:text-4xl">{event.title}</h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="font-display text-3xl font-bold sm:text-4xl">{event.title}</h1>
+            {user && user.id !== event.host_id && (
+              <ReportButton targetType="event" targetId={event.id} eventId={event.id} label="Report" />
+            )}
+          </div>
+          {(event as any).is_hidden && <p className="mt-2 text-sm text-destructive">This event is hidden from public listings.</p>}
           <p className="mt-4 whitespace-pre-line text-foreground/80">{event.description}</p>
           <div className="mt-8 rounded-xl border bg-card p-5">
             <h3 className="font-display font-semibold">Hosted by</h3>

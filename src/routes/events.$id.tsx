@@ -1,17 +1,49 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, notFound } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Users, Ticket } from "lucide-react";
+import { Calendar, MapPin, Users, Ticket, Globe } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import { EventFeedback } from "@/components/EventFeedback";
 import { EventGallery } from "@/components/EventGallery";
 import { ReportButton } from "@/components/ReportButton";
+import { AddToCalendarButton } from "@/components/AddToCalendarButton";
 
-export const Route = createFileRoute("/events/$id")({ component: EventPage });
+export const Route = createFileRoute("/events/$id")({
+  loader: async ({ params }) => {
+    const { data, error } = await supabase.from("events")
+      .select("id, title, description, location, cover_url, starts_at, ends_at")
+      .eq("id", params.id).maybeSingle();
+    if (error) throw error;
+    if (!data) throw notFound();
+    return { event: data };
+  },
+  head: ({ loaderData }) => {
+    const e = loaderData?.event;
+    if (!e) return { meta: [] };
+    const title = `${e.title} — Gather`;
+    const desc = (e.description || "Join this community event on Gather.").slice(0, 160);
+    const meta: Array<Record<string, string>> = [
+      { title },
+      { name: "description", content: desc },
+      { property: "og:title", content: title },
+      { property: "og:description", content: desc },
+      { property: "og:type", content: "event" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: title },
+      { name: "twitter:description", content: desc },
+    ];
+    if (e.cover_url) {
+      meta.push({ property: "og:image", content: e.cover_url });
+      meta.push({ name: "twitter:image", content: e.cover_url });
+    }
+    return { meta };
+  },
+  component: EventPage,
+});
 
 function EventPage() {
   const { id } = Route.useParams();
@@ -49,7 +81,12 @@ function EventPage() {
   });
 
   const rsvp = async () => {
-    if (!user) { nav({ to: "/login" }); return; }
+    if (!user) {
+      // returnTo flow: come back to this exact event after login
+      const returnTo = `/events/${id}`;
+      nav({ to: "/login", search: { redirect: returnTo } as any });
+      return;
+    }
     const { error } = await supabase.from("rsvps").insert({ event_id: id, user_id: user.id });
     if (error) return toast.error(error.message);
     toast.success("You're in! Check your ticket below.");
@@ -68,8 +105,11 @@ function EventPage() {
 
   if (!event) return <div className="container mx-auto max-w-4xl px-4 py-16">Loading…</div>;
 
+  const ended = new Date(event.ends_at) < new Date();
   const full = (counts?.confirmed ?? 0) >= event.capacity;
   const active = myRsvp && myRsvp.status !== "cancelled";
+  const isUnlisted = (event as any).visibility === "unlisted";
+  const isDraft = (event as any).publish_state === "draft";
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-10">
@@ -78,7 +118,12 @@ function EventPage() {
       </div>
       <div className="mt-8 grid gap-8 md:grid-cols-3">
         <div className="md:col-span-2">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {ended && <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium">Ended</span>}
+            {isDraft && <span className="rounded bg-muted px-2 py-0.5 text-xs">Draft</span>}
+            {isUnlisted && <span className="rounded bg-muted px-2 py-0.5 text-xs">Unlisted</span>}
+          </div>
+          <div className="mt-2 flex items-start justify-between gap-4">
             <h1 className="font-display text-3xl font-bold sm:text-4xl">{event.title}</h1>
             {user && user.id !== event.host_id && (
               <ReportButton targetType="event" targetId={event.id} eventId={event.id} label="Report" />
@@ -88,7 +133,11 @@ function EventPage() {
           <p className="mt-4 whitespace-pre-line text-foreground/80">{event.description}</p>
           <div className="mt-8 rounded-xl border bg-card p-5">
             <h3 className="font-display font-semibold">Hosted by</h3>
-            <p className="mt-1 text-sm">{(event as any).profiles?.display_name ?? "A community member"}</p>
+            <p className="mt-1 text-sm">
+              <Link to="/hosts/$id" params={{ id: event.host_id }} className="hover:text-accent">
+                {(event as any).profiles?.display_name ?? "A community member"}
+              </Link>
+            </p>
             {(event as any).profiles?.bio && <p className="mt-2 text-sm text-muted-foreground">{(event as any).profiles.bio}</p>}
           </div>
         </div>
@@ -96,17 +145,22 @@ function EventPage() {
           <div className="rounded-xl border bg-card p-5 shadow-sm">
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-accent" />{format(new Date(event.starts_at), "PPP · p")}</div>
-              <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-accent" />{event.location || "Location TBA"}</div>
+              {event.location && <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-accent" />{event.location}</div>}
+              {(event as any).online_url && <div className="flex items-center gap-2"><Globe className="h-4 w-4 text-accent" /><a className="underline truncate" href={(event as any).online_url} target="_blank" rel="noreferrer">Online link</a></div>}
               <div className="flex items-center gap-2"><Users className="h-4 w-4 text-accent" />{counts?.confirmed ?? 0} / {event.capacity} going</div>
+              {(event as any).timezone && <div className="text-xs text-muted-foreground">Timezone: {(event as any).timezone}</div>}
             </div>
-            {active ? (
+
+            {ended ? (
+              <div className="mt-4 rounded-md bg-muted p-3 text-center text-sm text-muted-foreground">This event has ended.</div>
+            ) : active ? (
               <Button variant="outline" className="mt-4 w-full" onClick={cancel}>Cancel RSVP</Button>
             ) : (
               <Button className="mt-4 w-full" onClick={rsvp}>
                 {full ? "Join waitlist" : "RSVP — it's free"}
               </Button>
             )}
-            {!user && <p className="mt-2 text-xs text-muted-foreground">You'll need to <Link to="/login" className="underline">sign in</Link> first.</p>}
+            {!user && !ended && <p className="mt-2 text-xs text-muted-foreground">You'll need to <Link to="/login" search={{ redirect: `/events/${id}` } as any} className="underline">sign in</Link> first.</p>}
           </div>
 
           {active && (
@@ -125,6 +179,17 @@ function EventPage() {
               </div>
               <div className="mt-3 font-mono text-lg tracking-widest">{myRsvp.ticket_code}</div>
               <p className="mt-1 text-xs text-muted-foreground">Show this at check-in</p>
+              <div className="mt-3">
+                <AddToCalendarButton event={{
+                  uid: event.id,
+                  title: event.title,
+                  description: event.description,
+                  location: event.location || (event as any).online_url || "",
+                  startsAt: event.starts_at,
+                  endsAt: event.ends_at,
+                  timezone: (event as any).timezone,
+                }} />
+              </div>
             </div>
           )}
         </aside>

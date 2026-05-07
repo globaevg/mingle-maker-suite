@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      event_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          event_id: string
+          id: string
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          rating: number
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          rating?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      event_photos: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          reviewed_at: string | null
+          status: Database["public"]["Enums"]["photo_status"]
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          reviewed_at?: string | null
+          status?: Database["public"]["Enums"]["photo_status"]
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          reviewed_at?: string | null
+          status?: Database["public"]["Enums"]["photo_status"]
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           capacity: number
@@ -211,6 +268,10 @@ export type Database = {
           used_at: string
         }[]
       }
+      has_confirmed_rsvp: {
+        Args: { _event: string; _user: string }
+        Returns: boolean
+      }
       is_event_host: {
         Args: { _event_id: string; _user_id: string }
         Returns: boolean
@@ -219,6 +280,7 @@ export type Database = {
     }
     Enums: {
       host_member_role: "host" | "checker"
+      photo_status: "pending" | "approved" | "rejected"
       rsvp_status: "confirmed" | "waitlist" | "cancelled"
     }
     CompositeTypes: {
@@ -348,6 +410,7 @@ export const Constants = {
   public: {
     Enums: {
       host_member_role: ["host", "checker"],
+      photo_status: ["pending", "approved", "rejected"],
       rsvp_status: ["confirmed", "waitlist", "cancelled"],
     },
   },

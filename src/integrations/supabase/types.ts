@@ -56,6 +56,63 @@ export type Database = {
         }
         Relationships: []
       }
+      host_invites: {
+        Row: {
+          created_at: string
+          expires_at: string
+          host_owner_id: string
+          id: string
+          role: Database["public"]["Enums"]["host_member_role"]
+          token: string
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          host_owner_id: string
+          id?: string
+          role: Database["public"]["Enums"]["host_member_role"]
+          token?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          host_owner_id?: string
+          id?: string
+          role?: Database["public"]["Enums"]["host_member_role"]
+          token?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
+      host_members: {
+        Row: {
+          created_at: string
+          host_owner_id: string
+          id: string
+          member_user_id: string
+          role: Database["public"]["Enums"]["host_member_role"]
+        }
+        Insert: {
+          created_at?: string
+          host_owner_id: string
+          id?: string
+          member_user_id: string
+          role: Database["public"]["Enums"]["host_member_role"]
+        }
+        Update: {
+          created_at?: string
+          host_owner_id?: string
+          id?: string
+          member_user_id?: string
+          role?: Database["public"]["Enums"]["host_member_role"]
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -129,6 +186,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_host_invite: {
+        Args: { _token: string }
+        Returns: {
+          host_owner_id: string
+          role: Database["public"]["Enums"]["host_member_role"]
+        }[]
+      }
+      can_checkin_event: {
+        Args: { _event_id: string; _user: string }
+        Returns: boolean
+      }
+      can_manage_event: {
+        Args: { _event_id: string; _user: string }
+        Returns: boolean
+      }
+      get_invite: {
+        Args: { _token: string }
+        Returns: {
+          expires_at: string
+          host_name: string
+          host_owner_id: string
+          role: Database["public"]["Enums"]["host_member_role"]
+          used_at: string
+        }[]
+      }
       is_event_host: {
         Args: { _event_id: string; _user_id: string }
         Returns: boolean
@@ -136,6 +218,7 @@ export type Database = {
       promote_waitlist: { Args: { _event_id: string }; Returns: undefined }
     }
     Enums: {
+      host_member_role: "host" | "checker"
       rsvp_status: "confirmed" | "waitlist" | "cancelled"
     }
     CompositeTypes: {
@@ -264,6 +347,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      host_member_role: ["host", "checker"],
       rsvp_status: ["confirmed", "waitlist", "cancelled"],
     },
   },

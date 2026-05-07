@@ -13,6 +13,9 @@ function Index() {
       const { data, error } = await supabase
         .from("events")
         .select("id, title, description, location, starts_at, capacity, cover_url")
+        .eq("is_hidden", false)
+        .eq("visibility", "public")
+        .eq("publish_state", "published")
         .gte("ends_at", new Date().toISOString())
         .order("starts_at", { ascending: true });
       if (error) throw error;

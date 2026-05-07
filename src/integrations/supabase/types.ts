@@ -80,6 +80,7 @@ export type Database = {
           ends_at: string
           host_id: string
           id: string
+          is_hidden: boolean
           location: string
           starts_at: string
           title: string
@@ -93,6 +94,7 @@ export type Database = {
           ends_at: string
           host_id: string
           id?: string
+          is_hidden?: boolean
           location?: string
           starts_at: string
           title: string
@@ -106,6 +108,7 @@ export type Database = {
           ends_at?: string
           host_id?: string
           id?: string
+          is_hidden?: boolean
           location?: string
           starts_at?: string
           title?: string
@@ -197,6 +200,42 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          reason: string
+          reporter_id: string
+          reviewed_at: string | null
+          status: Database["public"]["Enums"]["report_status"]
+          target_id: string
+          target_type: Database["public"]["Enums"]["report_target"]
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          reason?: string
+          reporter_id: string
+          reviewed_at?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+          target_id: string
+          target_type: Database["public"]["Enums"]["report_target"]
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          reason?: string
+          reporter_id?: string
+          reviewed_at?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+          target_id?: string
+          target_type?: Database["public"]["Enums"]["report_target"]
+        }
+        Relationships: []
+      }
       rsvps: {
         Row: {
           checked_in_at: string | null
@@ -281,6 +320,8 @@ export type Database = {
     Enums: {
       host_member_role: "host" | "checker"
       photo_status: "pending" | "approved" | "rejected"
+      report_status: "pending" | "reviewed" | "dismissed"
+      report_target: "event" | "photo"
       rsvp_status: "confirmed" | "waitlist" | "cancelled"
     }
     CompositeTypes: {
@@ -411,6 +452,8 @@ export const Constants = {
     Enums: {
       host_member_role: ["host", "checker"],
       photo_status: ["pending", "approved", "rejected"],
+      report_status: ["pending", "reviewed", "dismissed"],
+      report_target: ["event", "photo"],
       rsvp_status: ["confirmed", "waitlist", "cancelled"],
     },
   },

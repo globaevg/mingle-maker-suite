@@ -7,6 +7,8 @@ import { Calendar, MapPin, Users, Ticket } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
+import { EventFeedback } from "@/components/EventFeedback";
+import { EventGallery } from "@/components/EventGallery";
 
 export const Route = createFileRoute("/events/$id")({ component: EventPage });
 
@@ -119,6 +121,11 @@ function EventPage() {
             </div>
           )}
         </aside>
+      </div>
+
+      <div className="mt-10 grid gap-6 md:grid-cols-2">
+        <EventGallery eventId={id} isAttendee={!!active && myRsvp?.status === "confirmed"} />
+        <EventFeedback eventId={id} endsAt={event.ends_at} isAttendee={!!active && myRsvp?.status === "confirmed"} />
       </div>
     </div>
   );

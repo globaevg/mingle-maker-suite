@@ -181,6 +181,7 @@ function HostedEventCard({ event }: { event: any }) {
         <div className="flex flex-wrap gap-2">
           <Link to="/events/$id/edit" params={{ id: event.id }}><Button variant="outline" size="sm">Edit</Button></Link>
           <Link to="/checkin/$eventId" params={{ eventId: event.id }}><Button variant="outline" size="sm">Check-in</Button></Link>
+          <Link to="/events/$id/gallery" params={{ id: event.id }}><Button variant="outline" size="sm">Gallery</Button></Link>
           <Button variant="outline" size="sm" onClick={exportCsv}><Download className="mr-1 h-3.5 w-3.5" />CSV</Button>
           <Button variant="outline" size="sm" onClick={() => setOpen(!open)}>{open ? "Hide" : "Manage"}</Button>
         </div>

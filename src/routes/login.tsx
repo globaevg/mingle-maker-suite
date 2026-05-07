@@ -6,10 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/login")({ component: LoginPage });
+export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: typeof search.redirect === "string" ? search.redirect : "/",
+  }),
+  component: LoginPage,
+});
 
 function LoginPage() {
   const nav = useNavigate();
+  const search = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,7 +27,10 @@ function LoginPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("Welcome back!");
-    nav({ to: "/" });
+    // returnTo flow: navigate to original URL if provided
+    const target = search.redirect && search.redirect.startsWith("/") ? search.redirect : "/";
+    if (target === "/") nav({ to: "/" });
+    else window.location.href = target;
   };
 
   return (

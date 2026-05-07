@@ -28,6 +28,27 @@ function Dashboard() {
     },
   });
 
+  const { data: memberships } = useQuery({
+    queryKey: ["memberships", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data: mems, error } = await supabase.from("host_members")
+        .select("host_owner_id, role, profiles:host_owner_id(display_name)")
+        .eq("member_user_id", user!.id);
+      if (error) throw error;
+      if (!mems?.length) return [];
+      const ownerIds = mems.map((m: any) => m.host_owner_id);
+      const { data: events } = await supabase.from("events")
+        .select("id, title, starts_at, location, host_id")
+        .in("host_id", ownerIds)
+        .order("starts_at", { ascending: false });
+      return (events ?? []).map((e: any) => {
+        const m = mems.find((x: any) => x.host_owner_id === e.host_id);
+        return { ...e, role: m?.role, hostName: (m as any)?.profiles?.display_name };
+      });
+    },
+  });
+
   const { data: myRsvps } = useQuery({
     queryKey: ["my-rsvps", user?.id],
     enabled: !!user,
@@ -50,8 +71,30 @@ function Dashboard() {
       <Tabs defaultValue="hosting" className="mt-8">
         <TabsList>
           <TabsTrigger value="hosting">Hosting</TabsTrigger>
+          <TabsTrigger value="team">Team events</TabsTrigger>
           <TabsTrigger value="attending">My RSVPs</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="team" className="mt-6 space-y-3">
+          {memberships?.length === 0 && <p className="text-muted-foreground">You're not on any host teams. Ask a host for an invite link.</p>}
+          {memberships?.map((e: any) => (
+            <div key={e.id} className="flex items-center justify-between rounded-xl border bg-card p-4">
+              <div>
+                <div className="font-medium">{e.title}</div>
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5" />{format(new Date(e.starts_at), "PPP · p")} · {e.hostName}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded bg-accent/15 px-2 py-0.5 text-xs text-accent">{e.role}</span>
+                <Link to="/checkin/$eventId" params={{ eventId: e.id }}><Button variant="outline" size="sm">Check-in</Button></Link>
+                {e.role === "host" && (
+                  <Link to="/events/$id/edit" params={{ id: e.id }}><Button variant="outline" size="sm">Edit</Button></Link>
+                )}
+              </div>
+            </div>
+          ))}
+        </TabsContent>
 
         <TabsContent value="hosting" className="mt-6 space-y-4">
           {hosted?.length === 0 && <p className="text-muted-foreground">You haven't hosted any events yet.</p>}

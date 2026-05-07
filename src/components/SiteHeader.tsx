@@ -18,6 +18,7 @@ export function SiteHeader() {
             <>
               <Link to="/tickets" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">My tickets</Link>
               <Link to="/dashboard" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">Dashboard</Link>
+              <Link to="/team" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">Team</Link>
               <Link to="/profile" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">Profile</Link>
               <Link to="/events/new"><Button size="sm">Host event</Button></Link>
               <Button variant="ghost" size="sm" onClick={() => signOut()}>Sign out</Button>

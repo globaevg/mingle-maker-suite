@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { QRCodeSVG } from "qrcode.react";
 import { Calendar, MapPin, Ticket } from "lucide-react";
 import { format } from "date-fns";
+import { AddToCalendarButton } from "@/components/AddToCalendarButton";
 
 export const Route = createFileRoute("/tickets")({ component: TicketsPage });
 

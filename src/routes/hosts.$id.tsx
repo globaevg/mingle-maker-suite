@@ -1,10 +1,40 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Calendar, MapPin } from "lucide-react";
 import { format } from "date-fns";
 
-export const Route = createFileRoute("/hosts/$id")({ component: HostPage });
+export const Route = createFileRoute("/hosts/$id")({
+  loader: async ({ params }) => {
+    const { data, error } = await supabase.from("profiles")
+      .select("id, display_name, bio, avatar_url").eq("id", params.id).maybeSingle();
+    if (error) throw error;
+    if (!data) throw notFound();
+    return { profile: data };
+  },
+  head: ({ loaderData }) => {
+    const p = loaderData?.profile;
+    if (!p) return { meta: [] };
+    const title = `${p.display_name} — Host on Gather`;
+    const desc = (p.bio || `Events hosted by ${p.display_name} on Gather.`).slice(0, 160);
+    const meta: Array<Record<string, string>> = [
+      { title },
+      { name: "description", content: desc },
+      { property: "og:title", content: title },
+      { property: "og:description", content: desc },
+      { property: "og:type", content: "profile" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: title },
+      { name: "twitter:description", content: desc },
+    ];
+    if (p.avatar_url) {
+      meta.push({ property: "og:image", content: p.avatar_url });
+      meta.push({ name: "twitter:image", content: p.avatar_url });
+    }
+    return { meta };
+  },
+  component: HostPage,
+});
 
 function HostPage() {
   const { id } = Route.useParams();

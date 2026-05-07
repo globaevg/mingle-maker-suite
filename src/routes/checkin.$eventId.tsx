@@ -33,9 +33,20 @@ function CheckinPage() {
     },
   });
 
+  const { data: canCheckin } = useQuery({
+    queryKey: ["can-checkin", eventId, user?.id],
+    enabled: !!user && !!event,
+    queryFn: async () => {
+      if (event!.host_id === user!.id) return true;
+      const { data } = await supabase.from("host_members")
+        .select("id").eq("host_owner_id", event!.host_id).eq("member_user_id", user!.id).maybeSingle();
+      return !!data;
+    },
+  });
+
   const { data: stats } = useQuery({
     queryKey: ["checkin-stats", eventId],
-    enabled: !!user && !!event && event.host_id === user.id,
+    enabled: !!user && !!event && canCheckin === true,
     queryFn: async () => {
       const { data, error } = await supabase.from("rsvps")
         .select("id, ticket_code, status, checked_in_at")
@@ -46,10 +57,10 @@ function CheckinPage() {
   });
 
   if (!user || !event) return <div className="container mx-auto max-w-2xl px-4 py-12">Loading…</div>;
-  if (event.host_id !== user.id) {
+  if (canCheckin === false) {
     return (
       <div className="container mx-auto max-w-2xl px-4 py-12">
-        <p className="text-muted-foreground">Only the event host can run check-in.</p>
+        <p className="text-muted-foreground">You don't have access to check-in for this event.</p>
         <Link to="/dashboard" className="mt-4 inline-block text-accent underline">Back to dashboard</Link>
       </div>
     );

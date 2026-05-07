@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Upload, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
+import { ReportButton } from "@/components/ReportButton";
 
 const BUCKET = "event-photos";
 
@@ -68,9 +69,16 @@ export function EventGallery({ eventId, isAttendee }: { eventId: string; isAtten
       {approved.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
           {approved.map(p => (
-            <a key={p.id} href={publicUrl(p.storage_path)} target="_blank" rel="noreferrer" className="block aspect-square overflow-hidden rounded-lg bg-muted">
-              <img src={publicUrl(p.storage_path)} alt="" className="h-full w-full object-cover transition hover:scale-105" loading="lazy" />
-            </a>
+            <div key={p.id} className="relative aspect-square overflow-hidden rounded-lg bg-muted group">
+              <a href={publicUrl(p.storage_path)} target="_blank" rel="noreferrer" className="block h-full w-full">
+                <img src={publicUrl(p.storage_path)} alt="" className="h-full w-full object-cover transition hover:scale-105" loading="lazy" />
+              </a>
+              {user && user.id !== p.user_id && (
+                <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition">
+                  <ReportButton targetType="photo" targetId={p.id} eventId={eventId} variant="outline" />
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { QRCodeSVG } from "qrcode.react";
 import { Calendar, MapPin, Ticket } from "lucide-react";
 import { format } from "date-fns";
+import { AddToCalendarButton } from "@/components/AddToCalendarButton";
 
 export const Route = createFileRoute("/tickets")({ component: TicketsPage });
 
@@ -69,6 +70,16 @@ function TicketsPage() {
                 <Ticket className="h-4 w-4 text-accent" />{r.ticket_code}
               </div>
               {r.checked_in_at && <p className="mt-2 text-xs text-accent">Checked in {format(new Date(r.checked_in_at), "PPp")}</p>}
+              <div className="mt-3">
+                <AddToCalendarButton event={{
+                  uid: r.events.id,
+                  title: r.events.title,
+                  description: "",
+                  location: r.events.location || "",
+                  startsAt: r.events.starts_at,
+                  endsAt: r.events.ends_at,
+                }} />
+              </div>
             </div>
           </div>
         ))}

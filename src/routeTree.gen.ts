@@ -14,6 +14,7 @@ import { Route as TeamRouteImport } from './routes/team'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as MyEventsRouteImport } from './routes/my-events'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -49,6 +50,11 @@ const ReportsRoute = ReportsRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyEventsRoute = MyEventsRouteImport.update({
+  id: '/my-events',
+  path: '/my-events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/login': typeof LoginRoute
+  '/my-events': typeof MyEventsRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
   '/signup': typeof SignupRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/login': typeof LoginRoute
+  '/my-events': typeof MyEventsRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
   '/signup': typeof SignupRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/login': typeof LoginRoute
+  '/my-events': typeof MyEventsRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
   '/signup': typeof SignupRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/explore'
     | '/login'
+    | '/my-events'
     | '/profile'
     | '/reports'
     | '/signup'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/explore'
     | '/login'
+    | '/my-events'
     | '/profile'
     | '/reports'
     | '/signup'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/explore'
     | '/login'
+    | '/my-events'
     | '/profile'
     | '/reports'
     | '/signup'
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   ExploreRoute: typeof ExploreRoute
   LoginRoute: typeof LoginRoute
+  MyEventsRoute: typeof MyEventsRoute
   ProfileRoute: typeof ProfileRoute
   ReportsRoute: typeof ReportsRoute
   SignupRoute: typeof SignupRoute
@@ -271,6 +284,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-events': {
+      id: '/my-events'
+      path: '/my-events'
+      fullPath: '/my-events'
+      preLoaderRoute: typeof MyEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -372,6 +392,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   ExploreRoute: ExploreRoute,
   LoginRoute: LoginRoute,
+  MyEventsRoute: MyEventsRoute,
   ProfileRoute: ProfileRoute,
   ReportsRoute: ReportsRoute,
   SignupRoute: SignupRoute,

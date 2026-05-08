@@ -333,6 +333,10 @@ export type Database = {
         Args: { _event_id: string; _user_id: string }
         Returns: boolean
       }
+      is_team_host: {
+        Args: { _owner: string; _user: string }
+        Returns: boolean
+      }
       promote_waitlist: { Args: { _event_id: string }; Returns: undefined }
       undo_checkin: { Args: { _rsvp_id: string }; Returns: undefined }
     }

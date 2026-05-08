@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { withTimeout } from "@/lib/query-timeout";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/events/$id/edit")({ component: EditEventPage });
@@ -49,17 +50,17 @@ function EditEventPage() {
     setLoadState("loading");
     setLoadError(null);
     (async () => {
-      const { data, error } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
+      const { data, error } = await withTimeout(supabase.from("events").select("*").eq("id", id).maybeSingle());
       if (cancelled) return;
       if (error) { setLoadError(error.message); setLoadState("error"); return; }
       if (!data) { setLoadState("not-found"); return; }
       if (data.host_id !== user.id) {
-        const { data: membership, error: membershipError } = await supabase.from("host_members")
+        const { data: membership, error: membershipError } = await withTimeout(supabase.from("host_members")
           .select("id")
           .eq("host_owner_id", data.host_id)
           .eq("member_user_id", user.id)
           .eq("role", "host")
-          .maybeSingle();
+          .maybeSingle());
         if (cancelled) return;
         if (membershipError) { setLoadError(membershipError.message); setLoadState("error"); return; }
         if (!membership) { setLoadState("permission-denied"); return; }

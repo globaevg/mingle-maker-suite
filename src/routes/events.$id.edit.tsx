@@ -14,6 +14,16 @@ export const Route = createFileRoute("/events/$id/edit")({ component: EditEventP
 
 type LoadState = "idle" | "loading" | "not-found" | "permission-denied" | "error";
 
+function RouteMessage({ title, message, action }: { title: string; message?: string; action?: React.ReactNode }) {
+  return (
+    <div className="container mx-auto max-w-2xl px-4 py-12 text-center">
+      <h1 className="font-display text-2xl font-semibold">{title}</h1>
+      {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
 const toLocal = (iso: string) => {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -29,6 +39,7 @@ function EditEventPage() {
   const [busy, setBusy] = useState(false);
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => { if (!loading && !user) nav({ to: "/login" }); }, [loading, user, nav]);
 
@@ -55,7 +66,7 @@ function EditEventPage() {
       setLoadState("idle");
     })();
     return () => { cancelled = true; };
-  }, [id, user, loading, nav]);
+  }, [id, user, loading, nav, retryKey]);
 
   if (loading || loadState === "loading") return <RouteMessage title="Loading event…" />;
   if (!user) return <RouteMessage title="Redirecting to sign in…" />;
@@ -65,7 +76,7 @@ function EditEventPage() {
     <div className="container mx-auto max-w-2xl px-4 py-12 text-center">
       <h1 className="font-display text-2xl font-semibold">Couldn't load event</h1>
       <p className="mt-2 text-sm text-muted-foreground">{loadError || "A network or server error occurred."}</p>
-      <Button className="mt-4" variant="outline" onClick={() => setLoadState("loading")}>Retry</Button>
+      <Button className="mt-4" variant="outline" onClick={() => setRetryKey((v) => v + 1)}>Retry</Button>
     </div>
   );
   if (!form) return <RouteMessage title="Loading event…" />;

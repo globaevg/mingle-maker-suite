@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -15,27 +16,44 @@ function GalleryAdmin() {
   const { user, loading } = useAuth();
   const nav = useNavigate();
   const qc = useQueryClient();
-  if (!loading && !user) { nav({ to: "/login" }); return null; }
 
-  const { data: event } = useQuery({
+  const { data: event, isLoading: eventLoading, error: eventError } = useQuery({
     queryKey: ["event-min", id],
+    enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase.from("events").select("id, title, host_id").eq("id", id).single();
+      const { data, error } = await supabase.from("events").select("id, title, host_id").eq("id", id).maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Event not found");
       return data;
     },
   });
 
-  const { data: photos } = useQuery({
-    queryKey: ["gallery-admin", id],
-    enabled: !!user,
+  const isHost = !!user && !!event && event.host_id === user.id;
+
+  const { data: photos, isLoading: photosLoading } = useQuery({
+    queryKey: ["gallery-admin", id, isHost],
+    enabled: !!user && !!event && isHost,
     queryFn: async () => {
-      const { data, error } = await supabase.from("event_photos")
-        .select("id, storage_path, status, user_id, created_at, profiles:user_id(display_name)")
+      const { data: rows, error } = await supabase.from("event_photos")
+        .select("id, storage_path, status, user_id, created_at")
         .eq("event_id", id).order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      const userIds = Array.from(new Set((rows ?? []).map((r) => r.user_id)));
+      const nameMap = new Map<string, string>();
+      if (userIds.length) {
+        const { data: profs } = await supabase.from("profiles").select("id, display_name").in("id", userIds);
+        profs?.forEach((p) => nameMap.set(p.id, p.display_name ?? "Attendee"));
+      }
+      return (rows ?? []).map((r) => ({ ...r, profiles: { display_name: nameMap.get(r.user_id) ?? "Attendee" } }));
     },
   });
+
+  useEffect(() => { if (!loading && !user) nav({ to: "/login" }); }, [loading, user, nav]);
+
+  if (loading || (!user && !loading)) return <div className="container mx-auto max-w-5xl px-4 py-10 text-muted-foreground">Loading…</div>;
+  if (eventError) return <div className="container mx-auto max-w-5xl px-4 py-10 text-center"><p className="text-destructive">{(eventError as Error).message}</p></div>;
+  if (eventLoading || !event) return <div className="container mx-auto max-w-5xl px-4 py-10 text-muted-foreground">Loading event…</div>;
+  if (!isHost) return <div className="container mx-auto max-w-5xl px-4 py-10 text-center"><p className="text-muted-foreground">You don't have access to moderate this gallery.</p></div>;
 
   const setStatus = async (photoId: string, status: "approved" | "rejected") => {
     const { error } = await supabase.from("event_photos")

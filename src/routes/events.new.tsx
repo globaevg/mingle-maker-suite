@@ -31,7 +31,8 @@ function NewEventPage() {
     setForm({ ...form, [k]: e.target.value });
 
   const save = async (publish: boolean) => {
-    if (!user) return;
+    if (loading) return;
+    if (!user) { toast.error("Please sign in to create an event"); nav({ to: "/login" }); return; }
     if (!form.title || !form.starts_at || !form.ends_at) {
       return toast.error("Title, start, and end are required");
     }
@@ -102,8 +103,8 @@ function NewEventPage() {
         </TooltipProvider>
 
         <div className="flex flex-wrap gap-3 pt-2">
-          <Button type="button" variant="outline" disabled={submitting} onClick={() => save(false)}>Save Draft</Button>
-          <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : "Publish"}</Button>
+          <Button type="button" variant="outline" disabled={submitting || loading || !user} onClick={() => save(false)}>Save Draft</Button>
+          <Button type="submit" disabled={submitting || loading || !user}>{submitting ? "Saving…" : loading ? "Loading…" : "Publish"}</Button>
         </div>
       </form>
     </div>

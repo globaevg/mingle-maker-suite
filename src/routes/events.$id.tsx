@@ -51,13 +51,26 @@ function EventPage() {
   const qc = useQueryClient();
   const nav = useNavigate();
 
-  const { data: event } = useQuery({
+  const { data: event, isLoading: eventLoading, error: eventError } = useQuery({
     queryKey: ["event", id],
     queryFn: async () => {
       const { data, error } = await supabase.from("events")
-        .select("*, profiles:host_id(display_name, bio, avatar_url)")
-        .eq("id", id).single();
+        .select("*")
+        .eq("id", id).maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error("Event not found");
+      return data;
+    },
+  });
+
+  const { data: hostProfile } = useQuery({
+    queryKey: ["host-profile", event?.host_id],
+    enabled: !!event?.host_id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles")
+        .select("display_name, bio, avatar_url")
+        .eq("id", event!.host_id).maybeSingle();
+      if (error) return null;
       return data;
     },
   });
@@ -103,7 +116,15 @@ function EventPage() {
     qc.invalidateQueries({ queryKey: ["event-counts", id] });
   };
 
-  if (!event) return <div className="container mx-auto max-w-4xl px-4 py-16">Loading…</div>;
+
+  if (eventError) return (
+    <div className="container mx-auto max-w-2xl px-4 py-16 text-center">
+      <h1 className="font-display text-2xl font-semibold">Couldn't load event</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{(eventError as Error).message}</p>
+      <Link to="/explore" className="mt-4 inline-block underline">Back to explore</Link>
+    </div>
+  );
+  if (eventLoading || !event) return <div className="container mx-auto max-w-4xl px-4 py-16 text-muted-foreground">Loading event…</div>;
 
   const ended = new Date(event.ends_at) < new Date();
   const full = (counts?.confirmed ?? 0) >= event.capacity;
@@ -135,10 +156,10 @@ function EventPage() {
             <h3 className="font-display font-semibold">Hosted by</h3>
             <p className="mt-1 text-sm">
               <Link to="/hosts/$id" params={{ id: event.host_id }} className="hover:text-accent">
-                {(event as any).profiles?.display_name ?? "A community member"}
+                {hostProfile?.display_name ?? "A community member"}
               </Link>
             </p>
-            {(event as any).profiles?.bio && <p className="mt-2 text-sm text-muted-foreground">{(event as any).profiles.bio}</p>}
+            {hostProfile?.bio && <p className="mt-2 text-sm text-muted-foreground">{hostProfile.bio}</p>}
           </div>
         </div>
         <aside className="space-y-4">

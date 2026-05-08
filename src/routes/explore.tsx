@@ -17,7 +17,7 @@ function ExplorePage() {
   const [to, setTo] = useState("");
   const [includePast, setIncludePast] = useState(false);
 
-  const { data: events, isLoading } = useQuery({
+  const { data: events, isLoading, error } = useQuery({
     queryKey: ["explore", "events", includePast],
     queryFn: async () => {
       let query = supabase.from("events")
@@ -68,6 +68,7 @@ function ExplorePage() {
       </div>
 
       {isLoading && <p className="mt-8 text-muted-foreground">Loading…</p>}
+      {error && <p className="mt-8 text-destructive">{(error as Error).message || "A network or server error occurred."}</p>}
       {filtered && filtered.length === 0 && <p className="mt-8 text-muted-foreground">No matching events.</p>}
 
       <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

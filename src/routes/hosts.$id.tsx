@@ -74,6 +74,9 @@ function HostPage() {
         <div>
           <h1 className="font-display text-3xl font-semibold">{profile.display_name}</h1>
           {profile.bio && <p className="mt-1 max-w-xl text-muted-foreground">{profile.bio}</p>}
+          {(profile as any).contact_email && (
+            <p className="mt-1 text-sm"><a href={`mailto:${(profile as any).contact_email}`} className="text-accent underline">{(profile as any).contact_email}</a></p>
+          )}
         </div>
       </div>
 

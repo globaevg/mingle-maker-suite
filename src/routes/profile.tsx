@@ -13,7 +13,7 @@ export const Route = createFileRoute("/profile")({ component: ProfilePage });
 function ProfilePage() {
   const { user, loading } = useAuth();
   const nav = useNavigate();
-  const [form, setForm] = useState({ display_name: "", bio: "", avatar_url: "" });
+  const [form, setForm] = useState({ display_name: "", bio: "", avatar_url: "", contact_email: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle().then(({ data }) => {
-      if (data) setForm({ display_name: data.display_name ?? "", bio: data.bio ?? "", avatar_url: data.avatar_url ?? "" });
+      if (data) setForm({ display_name: data.display_name ?? "", bio: data.bio ?? "", avatar_url: data.avatar_url ?? "", contact_email: (data as any).contact_email ?? "" });
     });
   }, [user]);
 
@@ -36,7 +36,8 @@ function ProfilePage() {
       display_name: form.display_name,
       bio: form.bio || null,
       avatar_url: form.avatar_url || null,
-    }).eq("id", user.id);
+      contact_email: form.contact_email || null,
+    } as any).eq("id", user.id);
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Profile saved");
@@ -53,6 +54,7 @@ function ProfilePage() {
         <div className="space-y-1.5"><Label>Display name</Label><Input required value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} /></div>
         <div className="space-y-1.5"><Label>Bio</Label><Textarea rows={4} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder="Tell the community about yourself" /></div>
         <div className="space-y-1.5"><Label>Avatar URL</Label><Input value={form.avatar_url} onChange={(e) => setForm({ ...form, avatar_url: e.target.value })} placeholder="https://…" /></div>
+        <div className="space-y-1.5"><Label>Contact email (public)</Label><Input type="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} placeholder="hello@example.com" /></div>
         <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save profile"}</Button>
       </form>
     </div>

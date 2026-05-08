@@ -2,7 +2,11 @@
 
 A lightweight platform for hosting and attending free community events. Hosts publish events, attendees RSVP and get a QR-coded ticket, and hosts check guests in at the door.
 
-> **Demo URL:** _replace with your published Lovable URL_ (e.g. `https://gather.lovable.app`)
+> **Demo URL:** https://mingle-maker-suite.lovable.app
+>
+> **Example attendee CSV:** [`examples/attendees-example.csv`](./examples/attendees-example.csv)
+>
+> **Compliance checklist:** [`CHECKLIST.md`](./CHECKLIST.md)
 
 ---
 

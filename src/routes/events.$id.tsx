@@ -116,13 +116,6 @@ function EventPage() {
     qc.invalidateQueries({ queryKey: ["event-counts", id] });
   };
 
-  if (!event) return <div className="container mx-auto max-w-4xl px-4 py-16">Loading…</div>;
-
-  const ended = new Date(event.ends_at) < new Date();
-  const full = (counts?.confirmed ?? 0) >= event.capacity;
-  const active = myRsvp && myRsvp.status !== "cancelled";
-  const isUnlisted = (event as any).visibility === "unlisted";
-  const isDraft = (event as any).publish_state === "draft";
 
   if (eventError) return (
     <div className="container mx-auto max-w-2xl px-4 py-16 text-center">

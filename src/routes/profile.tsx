@@ -23,7 +23,7 @@ function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle().then(({ data }) => {
-      if (data) setForm({ display_name: data.display_name ?? "", bio: data.bio ?? "", avatar_url: data.avatar_url ?? "" });
+      if (data) setForm({ display_name: data.display_name ?? "", bio: data.bio ?? "", avatar_url: data.avatar_url ?? "", contact_email: (data as any).contact_email ?? "" });
     });
   }, [user]);
 

@@ -39,11 +39,25 @@ function GalleryAdmin() {
     },
   });
 
-  const isHost = !!user && !!event && event.host_id === user.id;
+  const { data: canManage, isLoading: permissionLoading, error: permissionError } = useQuery({
+    queryKey: ["gallery-permission", id, user?.id, event?.host_id],
+    enabled: !!user && !!event,
+    queryFn: async () => {
+      if (event!.host_id === user!.id) return true;
+      const { data, error } = await withTimeout(supabase.from("host_members")
+        .select("id")
+        .eq("host_owner_id", event!.host_id)
+        .eq("member_user_id", user!.id)
+        .eq("role", "host")
+        .maybeSingle());
+      if (error) throw error;
+      return !!data;
+    },
+  });
 
   const { data: photos, isLoading: photosLoading, error: photosError } = useQuery({
-    queryKey: ["gallery-admin", id, isHost],
-    enabled: !!user && !!event && isHost,
+    queryKey: ["gallery-admin", id, canManage],
+    enabled: !!user && !!event && canManage === true,
     queryFn: async () => {
       const { data: rows, error } = await withTimeout(supabase.from("event_photos")
         .select("id, storage_path, status, user_id, created_at")
@@ -68,7 +82,9 @@ function GalleryAdmin() {
     return <RouteState title={message === "Event not found" ? "Event not found" : "Couldn't load gallery"} message={message === "Event not found" ? "This event may have been removed or is unavailable." : message || "A network or server error occurred."} />;
   }
   if (eventLoading || !event) return <RouteState title="Loading event…" />;
-  if (!isHost) return <RouteState title="Permission denied" message="You don't have access to moderate this gallery." action={<Link to="/events/$id" params={{ id }}><Button variant="outline">View event</Button></Link>} />;
+  if (permissionError) return <RouteState title="Couldn't verify access" message={(permissionError as Error).message || "A network or server error occurred."} />;
+  if (permissionLoading || canManage === undefined) return <RouteState title="Checking permissions…" />;
+  if (!canManage) return <RouteState title="Permission denied" message="You don't have access to moderate this gallery." action={<Link to="/events/$id" params={{ id }}><Button variant="outline">View event</Button></Link>} />;
   if (photosError) return <RouteState title="Couldn't load photos" message={(photosError as Error).message || "A network or server error occurred."} />;
 
   const setStatus = async (photoId: string, status: "approved" | "rejected") => {

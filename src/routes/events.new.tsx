@@ -31,7 +31,8 @@ function NewEventPage() {
     setForm({ ...form, [k]: e.target.value });
 
   const save = async (publish: boolean) => {
-    if (!user) return;
+    if (loading) return;
+    if (!user) { toast.error("Please sign in to create an event"); nav({ to: "/login" }); return; }
     if (!form.title || !form.starts_at || !form.ends_at) {
       return toast.error("Title, start, and end are required");
     }

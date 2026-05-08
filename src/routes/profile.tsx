@@ -54,6 +54,7 @@ function ProfilePage() {
         <div className="space-y-1.5"><Label>Display name</Label><Input required value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} /></div>
         <div className="space-y-1.5"><Label>Bio</Label><Textarea rows={4} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder="Tell the community about yourself" /></div>
         <div className="space-y-1.5"><Label>Avatar URL</Label><Input value={form.avatar_url} onChange={(e) => setForm({ ...form, avatar_url: e.target.value })} placeholder="https://…" /></div>
+        <div className="space-y-1.5"><Label>Contact email (public)</Label><Input type="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} placeholder="hello@example.com" /></div>
         <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save profile"}</Button>
       </form>
     </div>

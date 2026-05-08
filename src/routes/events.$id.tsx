@@ -104,11 +104,15 @@ function EventPage() {
     initialData: loaderData.hostProfile,
     enabled: !!event?.host_id,
     queryFn: async () => {
-      const { data, error } = await withTimeout(supabase.from("profiles")
-        .select("display_name, bio, avatar_url")
-        .eq("id", event!.host_id).maybeSingle());
-      if (error) return null;
-      return data;
+      try {
+        const { data, error } = await withTimeout(supabase.from("profiles")
+          .select("display_name, bio, avatar_url")
+          .eq("id", event!.host_id).maybeSingle());
+        if (error) return null;
+        return data;
+      } catch {
+        return null;
+      }
     },
   });
 

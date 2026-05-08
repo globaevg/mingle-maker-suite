@@ -23,10 +23,11 @@ function TicketsPage() {
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase.from("rsvps")
-        .select("id, status, ticket_code, checked_in_at, promoted_at, events(id, title, starts_at, location, ends_at)")
+        .select("id, status, ticket_code, checked_in_at, promoted_at, created_at, events!inner(id, title, starts_at, location, ends_at)")
         .eq("user_id", user!.id)
         .neq("status", "cancelled")
-        .order("created_at", { ascending: false });
+        .gte("events.ends_at", new Date().toISOString())
+        .order("starts_at", { foreignTable: "events", ascending: true });
       if (error) throw error;
       return data as any[];
     },

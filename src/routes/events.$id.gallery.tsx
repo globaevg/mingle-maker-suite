@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { withTimeout } from "@/lib/query-timeout";
 import { toast } from "sonner";
 
 const BUCKET = "event-photos";
@@ -31,7 +32,7 @@ function GalleryAdmin() {
     queryKey: ["event-min", id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("events").select("id, title, host_id").eq("id", id).maybeSingle();
+      const { data, error } = await withTimeout(supabase.from("events").select("id, title, host_id").eq("id", id).maybeSingle());
       if (error) throw error;
       if (!data) throw new Error("Event not found");
       return data;
@@ -44,14 +45,14 @@ function GalleryAdmin() {
     queryKey: ["gallery-admin", id, isHost],
     enabled: !!user && !!event && isHost,
     queryFn: async () => {
-      const { data: rows, error } = await supabase.from("event_photos")
+      const { data: rows, error } = await withTimeout(supabase.from("event_photos")
         .select("id, storage_path, status, user_id, created_at")
-        .eq("event_id", id).order("created_at", { ascending: false });
+        .eq("event_id", id).order("created_at", { ascending: false }));
       if (error) throw error;
       const userIds = Array.from(new Set((rows ?? []).map((r) => r.user_id)));
       const nameMap = new Map<string, string>();
       if (userIds.length) {
-        const { data: profs } = await supabase.from("profiles").select("id, display_name").in("id", userIds);
+        const { data: profs } = await withTimeout(supabase.from("profiles").select("id, display_name").in("id", userIds)).catch(() => ({ data: [] }));
         profs?.forEach((p) => nameMap.set(p.id, p.display_name ?? "Attendee"));
       }
       return (rows ?? []).map((r) => ({ ...r, profiles: { display_name: nameMap.get(r.user_id) ?? "Attendee" } }));

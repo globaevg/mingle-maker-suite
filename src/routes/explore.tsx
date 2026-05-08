@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { withTimeout } from "@/lib/query-timeout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -17,7 +18,7 @@ function ExplorePage() {
   const [to, setTo] = useState("");
   const [includePast, setIncludePast] = useState(false);
 
-  const { data: events, isLoading } = useQuery({
+  const { data: events, isLoading, error } = useQuery({
     queryKey: ["explore", "events", includePast],
     queryFn: async () => {
       let query = supabase.from("events")
@@ -27,7 +28,7 @@ function ExplorePage() {
         .eq("publish_state", "published")
         .order("starts_at", { ascending: true });
       if (!includePast) query = query.gte("ends_at", new Date().toISOString());
-      const { data, error } = await query;
+      const { data, error } = await withTimeout(query);
       if (error) throw error;
       return data;
     },
@@ -68,6 +69,7 @@ function ExplorePage() {
       </div>
 
       {isLoading && <p className="mt-8 text-muted-foreground">Loading…</p>}
+      {error && <p className="mt-8 text-destructive">{(error as Error).message || "A network or server error occurred."}</p>}
       {filtered && filtered.length === 0 && <p className="mt-8 text-muted-foreground">No matching events.</p>}
 
       <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

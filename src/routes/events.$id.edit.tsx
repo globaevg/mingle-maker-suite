@@ -8,9 +8,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { withTimeout } from "@/lib/query-timeout";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/events/$id/edit")({ component: EditEventPage });
+
+type LoadState = "idle" | "loading" | "not-found" | "permission-denied" | "error";
+
+function RouteMessage({ title, message, action }: { title: string; message?: string; action?: React.ReactNode }) {
+  return (
+    <div className="container mx-auto max-w-2xl px-4 py-12 text-center">
+      <h1 className="font-display text-2xl font-semibold">{title}</h1>
+      {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
 
 const toLocal = (iso: string) => {
   const d = new Date(iso);
@@ -25,40 +38,65 @@ function EditEventPage() {
   const [form, setForm] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
-
+  const [loadState, setLoadState] = useState<LoadState>("idle");
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => { if (!loading && !user) nav({ to: "/login" }); }, [loading, user, nav]);
 
   useEffect(() => {
     if (loading || !user) return;
     let cancelled = false;
+    setLoadState("loading");
+    setLoadError(null);
     (async () => {
-      const { data, error } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
-      if (cancelled) return;
-      if (error) { setLoadError(error.message); return; }
-      if (!data) { setLoadError("Event not found"); return; }
-      if (data.host_id !== user.id) { toast.error("You can't edit this event"); nav({ to: "/events/$id", params: { id } }); return; }
-      setForm({
-        title: data.title, description: data.description, location: data.location,
-        online_url: (data as any).online_url ?? "",
-        starts_at: toLocal(data.starts_at), ends_at: toLocal(data.ends_at),
-        timezone: (data as any).timezone ?? "UTC",
-        capacity: data.capacity, cover_url: data.cover_url ?? "",
-        visibility: (data as any).visibility ?? "public",
-        publish_state: (data as any).publish_state ?? "draft",
-      });
+      try {
+        const { data, error } = await withTimeout(supabase.from("events").select("*").eq("id", id).maybeSingle());
+        if (cancelled) return;
+        if (error) { setLoadError(error.message); setLoadState("error"); return; }
+        if (!data) { setLoadState("not-found"); return; }
+        if (data.host_id !== user.id) {
+          const { data: membership, error: membershipError } = await withTimeout(supabase.from("host_members")
+            .select("id")
+            .eq("host_owner_id", data.host_id)
+            .eq("member_user_id", user.id)
+            .eq("role", "host")
+            .maybeSingle());
+          if (cancelled) return;
+          if (membershipError) { setLoadError(membershipError.message); setLoadState("error"); return; }
+          if (!membership) { setLoadState("permission-denied"); return; }
+        }
+        setForm({
+          title: data.title, description: data.description, location: data.location,
+          online_url: (data as any).online_url ?? "",
+          starts_at: toLocal(data.starts_at), ends_at: toLocal(data.ends_at),
+          timezone: (data as any).timezone ?? "UTC",
+          capacity: data.capacity, cover_url: data.cover_url ?? "",
+          visibility: (data as any).visibility ?? "public",
+          publish_state: (data as any).publish_state ?? "draft",
+        });
+        setLoadState("idle");
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "A network or server error occurred.");
+        setLoadState("error");
+      }
     })();
     return () => { cancelled = true; };
-  }, [id, user, loading, nav]);
+  }, [id, user, loading, nav, retryKey]);
 
-  if (loadError) return (
+  if (loading || loadState === "loading") return <RouteMessage title="Loading event…" />;
+  if (!user) return <RouteMessage title="Redirecting to sign in…" />;
+  if (loadState === "not-found") return <RouteMessage title="Event not found" message="This event may have been removed or is unavailable." />;
+  if (loadState === "permission-denied") return <RouteMessage title="Permission denied" message="You don't have access to edit this event." action={<Button variant="outline" onClick={() => nav({ to: "/events/$id", params: { id } })}>View event</Button>} />;
+  if (loadState === "error") return (
     <div className="container mx-auto max-w-2xl px-4 py-12 text-center">
       <h1 className="font-display text-2xl font-semibold">Couldn't load event</h1>
-      <p className="mt-2 text-sm text-muted-foreground">{loadError}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{loadError || "A network or server error occurred."}</p>
+      <Button className="mt-4" variant="outline" onClick={() => setRetryKey((v) => v + 1)}>Retry</Button>
     </div>
   );
-  if (!form) return <div className="container mx-auto max-w-2xl px-4 py-12 text-muted-foreground">Loading event…</div>;
+  if (!form) return <RouteMessage title="Loading event…" />;
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [k]: e.target.value });

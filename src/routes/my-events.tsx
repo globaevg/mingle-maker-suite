@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { withTimeout } from "@/lib/query-timeout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,15 @@ type Row = {
   hostName?: string;
 };
 
+function PageState({ title, message }: { title: string; message?: string }) {
+  return (
+    <div className="container mx-auto max-w-5xl px-4 py-10 text-center">
+      <h1 className="font-display text-2xl font-semibold">{title}</h1>
+      {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
+    </div>
+  );
+}
+
 function MyEventsPage() {
   const { user, loading } = useAuth();
   const nav = useNavigate();
@@ -32,33 +42,45 @@ function MyEventsPage() {
   const [to, setTo] = useState("");
   const [hostFilter, setHostFilter] = useState("all");
 
-  const { data: rows } = useQuery({
+  const { data: rows, isLoading, error } = useQuery({
     queryKey: ["my-events", user?.id],
     enabled: !!user,
     queryFn: async (): Promise<Row[]> => {
       // Self-hosted events
-      const { data: own } = await supabase.from("events")
+      const { data: own, error: ownError } = await withTimeout(supabase.from("events")
         .select("id, title, starts_at, ends_at, location, host_id")
-        .eq("host_id", user!.id);
+        .eq("host_id", user!.id));
+      if (ownError) throw ownError;
 
       // Team memberships → events I can manage/check-in
-      const { data: mems } = await supabase.from("host_members")
-        .select("host_owner_id, role, profiles:host_owner_id(display_name)")
-        .eq("member_user_id", user!.id);
+      const { data: mems, error: memsError } = await withTimeout(supabase.from("host_members")
+        .select("host_owner_id, role")
+        .eq("member_user_id", user!.id));
+      if (memsError) throw memsError;
+
+      const hostIds = Array.from(new Set([user!.id, ...(mems ?? []).map((m: any) => m.host_owner_id)]));
+      const hostNames = new Map<string, string>();
+      if (hostIds.length) {
+        const { data: profiles } = await withTimeout(supabase.from("profiles")
+          .select("id, display_name")
+          .in("id", hostIds)).catch(() => ({ data: [] }));
+        profiles?.forEach((p) => hostNames.set(p.id, p.display_name ?? p.id.slice(0, 8)));
+      }
 
       let teamEvents: any[] = [];
       if (mems && mems.length > 0) {
         const ownerIds = mems.map((m: any) => m.host_owner_id);
-        const { data } = await supabase.from("events")
+        const { data, error } = await withTimeout(supabase.from("events")
           .select("id, title, starts_at, ends_at, location, host_id")
-          .in("host_id", ownerIds);
+          .in("host_id", ownerIds));
+        if (error) throw error;
         teamEvents = (data ?? []).map((e: any) => {
           const m = mems.find((x: any) => x.host_owner_id === e.host_id);
-          return { ...e, role: m?.role, hostName: (m as any)?.profiles?.display_name };
+          return { ...e, role: m?.role, hostName: hostNames.get(e.host_id) };
         });
       }
 
-      const ownRows: Row[] = (own ?? []).map((e) => ({ ...e, role: "host" as const }));
+      const ownRows: Row[] = (own ?? []).map((e) => ({ ...e, role: "host" as const, hostName: hostNames.get(e.host_id) ?? "Me" }));
       const map = new Map<string, Row>();
       [...ownRows, ...teamEvents].forEach((r) => { if (!map.has(r.id)) map.set(r.id, r); });
       return Array.from(map.values()).sort((a, b) => a.starts_at < b.starts_at ? 1 : -1);
@@ -80,7 +102,9 @@ function MyEventsPage() {
     return true;
   });
 
-  if (!user) return null;
+  if (loading) return <PageState title="Loading your events…" />;
+  if (!user) return <PageState title="Redirecting to sign in…" />;
+  if (error) return <PageState title="Couldn't load your events" message={(error as Error).message || "A network or server error occurred."} />;
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-10">
@@ -102,6 +126,7 @@ function MyEventsPage() {
       </div>
 
       <div className="mt-6 space-y-3">
+        {isLoading && <p className="text-muted-foreground">Loading events…</p>}
         {filtered?.length === 0 && <p className="text-muted-foreground">No events match.</p>}
         {filtered?.map((e) => (
           <div key={e.id} className="flex items-center justify-between rounded-xl border bg-card p-4">
@@ -114,9 +139,13 @@ function MyEventsPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded bg-accent/15 px-2 py-0.5 text-xs text-accent capitalize">{e.role}</span>
+              <Link to="/events/$id" params={{ id: e.id }}><Button variant="outline" size="sm">View</Button></Link>
               <Link to="/checkin/$eventId" params={{ eventId: e.id }}><Button variant="outline" size="sm">Check-in</Button></Link>
               {e.role === "host" && (
-                <Link to="/events/$id/edit" params={{ id: e.id }}><Button variant="outline" size="sm">Edit</Button></Link>
+                <>
+                  <Link to="/events/$id/edit" params={{ id: e.id }}><Button variant="outline" size="sm">Edit</Button></Link>
+                  <Link to="/events/$id/gallery" params={{ id: e.id }}><Button variant="outline" size="sm">Gallery</Button></Link>
+                </>
               )}
             </div>
           </div>

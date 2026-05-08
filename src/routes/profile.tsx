@@ -13,7 +13,7 @@ export const Route = createFileRoute("/profile")({ component: ProfilePage });
 function ProfilePage() {
   const { user, loading } = useAuth();
   const nav = useNavigate();
-  const [form, setForm] = useState({ display_name: "", bio: "", avatar_url: "" });
+  const [form, setForm] = useState({ display_name: "", bio: "", avatar_url: "", contact_email: "" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {

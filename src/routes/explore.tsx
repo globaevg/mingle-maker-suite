@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { withTimeout } from "@/lib/query-timeout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -27,7 +28,7 @@ function ExplorePage() {
         .eq("publish_state", "published")
         .order("starts_at", { ascending: true });
       if (!includePast) query = query.gte("ends_at", new Date().toISOString());
-      const { data, error } = await query;
+      const { data, error } = await withTimeout(query);
       if (error) throw error;
       return data;
     },

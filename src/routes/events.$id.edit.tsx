@@ -26,12 +26,19 @@ function EditEventPage() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => { if (!loading && !user) nav({ to: "/login" }); }, [loading, user, nav]);
 
   useEffect(() => {
-    supabase.from("events").select("*").eq("id", id).single().then(({ data, error }) => {
-      if (error || !data) { toast.error("Event not found"); nav({ to: "/" }); return; }
-      if (user && data.host_id !== user.id) { toast.error("You can't edit this event"); nav({ to: "/events/$id", params: { id } }); return; }
+    if (loading || !user) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
+      if (cancelled) return;
+      if (error) { setLoadError(error.message); return; }
+      if (!data) { setLoadError("Event not found"); return; }
+      if (data.host_id !== user.id) { toast.error("You can't edit this event"); nav({ to: "/events/$id", params: { id } }); return; }
       setForm({
         title: data.title, description: data.description, location: data.location,
         online_url: (data as any).online_url ?? "",
@@ -41,10 +48,17 @@ function EditEventPage() {
         visibility: (data as any).visibility ?? "public",
         publish_state: (data as any).publish_state ?? "draft",
       });
-    });
-  }, [id, user, nav]);
+    })();
+    return () => { cancelled = true; };
+  }, [id, user, loading, nav]);
 
-  if (!form) return <div className="container mx-auto max-w-2xl px-4 py-12">Loading…</div>;
+  if (loadError) return (
+    <div className="container mx-auto max-w-2xl px-4 py-12 text-center">
+      <h1 className="font-display text-2xl font-semibold">Couldn't load event</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{loadError}</p>
+    </div>
+  );
+  if (!form) return <div className="container mx-auto max-w-2xl px-4 py-12 text-muted-foreground">Loading event…</div>;
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [k]: e.target.value });

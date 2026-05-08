@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { withTimeout } from "@/lib/query-timeout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -46,32 +47,32 @@ function MyEventsPage() {
     enabled: !!user,
     queryFn: async (): Promise<Row[]> => {
       // Self-hosted events
-      const { data: own, error: ownError } = await supabase.from("events")
+      const { data: own, error: ownError } = await withTimeout(supabase.from("events")
         .select("id, title, starts_at, ends_at, location, host_id")
-        .eq("host_id", user!.id);
+        .eq("host_id", user!.id));
       if (ownError) throw ownError;
 
       // Team memberships → events I can manage/check-in
-      const { data: mems, error: memsError } = await supabase.from("host_members")
+      const { data: mems, error: memsError } = await withTimeout(supabase.from("host_members")
         .select("host_owner_id, role")
-        .eq("member_user_id", user!.id);
+        .eq("member_user_id", user!.id));
       if (memsError) throw memsError;
 
       const hostIds = Array.from(new Set([user!.id, ...(mems ?? []).map((m: any) => m.host_owner_id)]));
       const hostNames = new Map<string, string>();
       if (hostIds.length) {
-        const { data: profiles } = await supabase.from("profiles")
+        const { data: profiles } = await withTimeout(supabase.from("profiles")
           .select("id, display_name")
-          .in("id", hostIds);
+          .in("id", hostIds)).catch(() => ({ data: [] }));
         profiles?.forEach((p) => hostNames.set(p.id, p.display_name ?? p.id.slice(0, 8)));
       }
 
       let teamEvents: any[] = [];
       if (mems && mems.length > 0) {
         const ownerIds = mems.map((m: any) => m.host_owner_id);
-        const { data, error } = await supabase.from("events")
+        const { data, error } = await withTimeout(supabase.from("events")
           .select("id, title, starts_at, ends_at, location, host_id")
-          .in("host_id", ownerIds);
+          .in("host_id", ownerIds));
         if (error) throw error;
         teamEvents = (data ?? []).map((e: any) => {
           const m = mems.find((x: any) => x.host_owner_id === e.host_id);

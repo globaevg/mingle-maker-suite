@@ -102,8 +102,8 @@ function NewEventPage() {
         </TooltipProvider>
 
         <div className="flex flex-wrap gap-3 pt-2">
-          <Button type="button" variant="outline" disabled={submitting} onClick={() => save(false)}>Save Draft</Button>
-          <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : "Publish"}</Button>
+          <Button type="button" variant="outline" disabled={submitting || loading || !user} onClick={() => save(false)}>Save Draft</Button>
+          <Button type="submit" disabled={submitting || loading || !user}>{submitting ? "Saving…" : loading ? "Loading…" : "Publish"}</Button>
         </div>
       </form>
     </div>

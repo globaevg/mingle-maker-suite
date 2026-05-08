@@ -15,7 +15,7 @@ import { AddToCalendarButton } from "@/components/AddToCalendarButton";
 export const Route = createFileRoute("/events/$id")({
   loader: async ({ params }) => {
     const { data, error } = await supabase.from("events")
-      .select("id, title, description, location, cover_url, starts_at, ends_at, host_id")
+      .select("*")
       .eq("id", params.id).maybeSingle();
     if (error) throw error;
     if (!data) throw notFound();

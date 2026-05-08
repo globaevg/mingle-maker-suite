@@ -50,31 +50,37 @@ function EditEventPage() {
     setLoadState("loading");
     setLoadError(null);
     (async () => {
-      const { data, error } = await withTimeout(supabase.from("events").select("*").eq("id", id).maybeSingle());
-      if (cancelled) return;
-      if (error) { setLoadError(error.message); setLoadState("error"); return; }
-      if (!data) { setLoadState("not-found"); return; }
-      if (data.host_id !== user.id) {
-        const { data: membership, error: membershipError } = await withTimeout(supabase.from("host_members")
-          .select("id")
-          .eq("host_owner_id", data.host_id)
-          .eq("member_user_id", user.id)
-          .eq("role", "host")
-          .maybeSingle());
+      try {
+        const { data, error } = await withTimeout(supabase.from("events").select("*").eq("id", id).maybeSingle());
         if (cancelled) return;
-        if (membershipError) { setLoadError(membershipError.message); setLoadState("error"); return; }
-        if (!membership) { setLoadState("permission-denied"); return; }
+        if (error) { setLoadError(error.message); setLoadState("error"); return; }
+        if (!data) { setLoadState("not-found"); return; }
+        if (data.host_id !== user.id) {
+          const { data: membership, error: membershipError } = await withTimeout(supabase.from("host_members")
+            .select("id")
+            .eq("host_owner_id", data.host_id)
+            .eq("member_user_id", user.id)
+            .eq("role", "host")
+            .maybeSingle());
+          if (cancelled) return;
+          if (membershipError) { setLoadError(membershipError.message); setLoadState("error"); return; }
+          if (!membership) { setLoadState("permission-denied"); return; }
+        }
+        setForm({
+          title: data.title, description: data.description, location: data.location,
+          online_url: (data as any).online_url ?? "",
+          starts_at: toLocal(data.starts_at), ends_at: toLocal(data.ends_at),
+          timezone: (data as any).timezone ?? "UTC",
+          capacity: data.capacity, cover_url: data.cover_url ?? "",
+          visibility: (data as any).visibility ?? "public",
+          publish_state: (data as any).publish_state ?? "draft",
+        });
+        setLoadState("idle");
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "A network or server error occurred.");
+        setLoadState("error");
       }
-      setForm({
-        title: data.title, description: data.description, location: data.location,
-        online_url: (data as any).online_url ?? "",
-        starts_at: toLocal(data.starts_at), ends_at: toLocal(data.ends_at),
-        timezone: (data as any).timezone ?? "UTC",
-        capacity: data.capacity, cover_url: data.cover_url ?? "",
-        visibility: (data as any).visibility ?? "public",
-        publish_state: (data as any).publish_state ?? "draft",
-      });
-      setLoadState("idle");
     })();
     return () => { cancelled = true; };
   }, [id, user, loading, nav, retryKey]);

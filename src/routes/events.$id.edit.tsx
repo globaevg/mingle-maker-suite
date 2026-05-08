@@ -53,7 +53,17 @@ function EditEventPage() {
       if (cancelled) return;
       if (error) { setLoadError(error.message); setLoadState("error"); return; }
       if (!data) { setLoadState("not-found"); return; }
-      if (data.host_id !== user.id) { setLoadState("permission-denied"); return; }
+      if (data.host_id !== user.id) {
+        const { data: membership, error: membershipError } = await supabase.from("host_members")
+          .select("id")
+          .eq("host_owner_id", data.host_id)
+          .eq("member_user_id", user.id)
+          .eq("role", "host")
+          .maybeSingle();
+        if (cancelled) return;
+        if (membershipError) { setLoadError(membershipError.message); setLoadState("error"); return; }
+        if (!membership) { setLoadState("permission-denied"); return; }
+      }
       setForm({
         title: data.title, description: data.description, location: data.location,
         online_url: (data as any).online_url ?? "",

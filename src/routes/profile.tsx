@@ -36,7 +36,8 @@ function ProfilePage() {
       display_name: form.display_name,
       bio: form.bio || null,
       avatar_url: form.avatar_url || null,
-    }).eq("id", user.id);
+      contact_email: form.contact_email || null,
+    } as any).eq("id", user.id);
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Profile saved");

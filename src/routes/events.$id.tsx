@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, notFound, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -15,11 +15,15 @@ import { AddToCalendarButton } from "@/components/AddToCalendarButton";
 export const Route = createFileRoute("/events/$id")({
   loader: async ({ params }) => {
     const { data, error } = await supabase.from("events")
-      .select("id, title, description, location, cover_url, starts_at, ends_at")
+      .select("id, title, description, location, cover_url, starts_at, ends_at, host_id")
       .eq("id", params.id).maybeSingle();
     if (error) throw error;
     if (!data) throw notFound();
-    return { event: data };
+    const { data: hostProfile } = await supabase.from("profiles")
+      .select("id, display_name, bio, avatar_url")
+      .eq("id", data.host_id)
+      .maybeSingle();
+    return { event: data, hostProfile: hostProfile ?? null };
   },
   head: ({ loaderData }) => {
     const e = loaderData?.event;
@@ -42,17 +46,48 @@ export const Route = createFileRoute("/events/$id")({
     }
     return { meta };
   },
+  pendingComponent: () => <RouteStatus title="Loading event…" />,
+  errorComponent: ({ error, reset }) => <RouteError error={error} reset={reset} />,
+  notFoundComponent: () => (
+    <RouteStatus title="Event not found" message="This event may have been removed or is unavailable." linkLabel="Back to explore" linkTo="/explore" />
+  ),
   component: EventPage,
 });
 
+function RouteStatus({ title, message, linkLabel, linkTo }: { title: string; message?: string; linkLabel?: string; linkTo?: "/explore" }) {
+  return (
+    <div className="container mx-auto max-w-2xl px-4 py-16 text-center">
+      <h1 className="font-display text-2xl font-semibold">{title}</h1>
+      {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
+      {linkLabel && linkTo && <Link to={linkTo} className="mt-4 inline-block underline">{linkLabel}</Link>}
+    </div>
+  );
+}
+
+function RouteError({ error, reset }: { error: Error; reset: () => void }) {
+  const router = useRouter();
+  return (
+    <div className="container mx-auto max-w-2xl px-4 py-16 text-center">
+      <h1 className="font-display text-2xl font-semibold">Couldn't load event</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{error.message || "A network or server error occurred."}</p>
+      <div className="mt-4 flex justify-center gap-3">
+        <Button variant="outline" onClick={() => { router.invalidate(); reset(); }}>Retry</Button>
+        <Link to="/explore"><Button variant="outline">Back to explore</Button></Link>
+      </div>
+    </div>
+  );
+}
+
 function EventPage() {
   const { id } = Route.useParams();
+  const loaderData = Route.useLoaderData();
   const { user } = useAuth();
   const qc = useQueryClient();
   const nav = useNavigate();
 
   const { data: event, isLoading: eventLoading, error: eventError } = useQuery({
     queryKey: ["event", id],
+    initialData: loaderData.event,
     queryFn: async () => {
       const { data, error } = await supabase.from("events")
         .select("*")
@@ -65,6 +100,7 @@ function EventPage() {
 
   const { data: hostProfile } = useQuery({
     queryKey: ["host-profile", event?.host_id],
+    initialData: loaderData.hostProfile,
     enabled: !!event?.host_id,
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles")

@@ -11,18 +11,19 @@ import { EventFeedback } from "@/components/EventFeedback";
 import { EventGallery } from "@/components/EventGallery";
 import { ReportButton } from "@/components/ReportButton";
 import { AddToCalendarButton } from "@/components/AddToCalendarButton";
+import { withTimeout } from "@/lib/query-timeout";
 
 export const Route = createFileRoute("/events/$id")({
   loader: async ({ params }) => {
-    const { data, error } = await supabase.from("events")
+    const { data, error } = await withTimeout(supabase.from("events")
       .select("*")
-      .eq("id", params.id).maybeSingle();
+      .eq("id", params.id).maybeSingle());
     if (error) throw error;
     if (!data) throw notFound();
-    const { data: hostProfile } = await supabase.from("profiles")
+    const { data: hostProfile } = await withTimeout(supabase.from("profiles")
       .select("id, display_name, bio, avatar_url")
       .eq("id", data.host_id)
-      .maybeSingle();
+      .maybeSingle()).catch(() => ({ data: null }));
     return { event: data, hostProfile: hostProfile ?? null };
   },
   head: ({ loaderData }) => {
@@ -89,9 +90,9 @@ function EventPage() {
     queryKey: ["event", id],
     initialData: loaderData.event,
     queryFn: async () => {
-      const { data, error } = await supabase.from("events")
+      const { data, error } = await withTimeout(supabase.from("events")
         .select("*")
-        .eq("id", id).maybeSingle();
+        .eq("id", id).maybeSingle());
       if (error) throw error;
       if (!data) throw new Error("Event not found");
       return data;
@@ -103,9 +104,9 @@ function EventPage() {
     initialData: loaderData.hostProfile,
     enabled: !!event?.host_id,
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles")
+      const { data, error } = await withTimeout(supabase.from("profiles")
         .select("display_name, bio, avatar_url")
-        .eq("id", event!.host_id).maybeSingle();
+        .eq("id", event!.host_id).maybeSingle());
       if (error) return null;
       return data;
     },
@@ -114,8 +115,8 @@ function EventPage() {
   const { data: counts } = useQuery({
     queryKey: ["event-counts", id],
     queryFn: async () => {
-      const { count: confirmed } = await supabase.from("rsvps").select("*", { count: "exact", head: true })
-        .eq("event_id", id).eq("status", "confirmed");
+      const { count: confirmed } = await withTimeout(supabase.from("rsvps").select("*", { count: "exact", head: true })
+        .eq("event_id", id).eq("status", "confirmed"));
       return { confirmed: confirmed ?? 0 };
     },
   });
@@ -124,7 +125,7 @@ function EventPage() {
     queryKey: ["my-rsvp", id, user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase.from("rsvps").select("*").eq("event_id", id).eq("user_id", user!.id).maybeSingle();
+      const { data } = await withTimeout(supabase.from("rsvps").select("*").eq("event_id", id).eq("user_id", user!.id).maybeSingle());
       return data;
     },
   });

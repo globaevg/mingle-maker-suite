@@ -11,6 +11,16 @@ const publicUrl = (p: string) => supabase.storage.from(BUCKET).getPublicUrl(p).d
 
 export const Route = createFileRoute("/events/$id/gallery")({ component: GalleryAdmin });
 
+function RouteState({ title, message, action }: { title: string; message?: string; action?: React.ReactNode }) {
+  return (
+    <div className="container mx-auto max-w-5xl px-4 py-10 text-center">
+      <h1 className="font-display text-2xl font-semibold">{title}</h1>
+      {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
 function GalleryAdmin() {
   const { id } = Route.useParams();
   const { user, loading } = useAuth();
@@ -30,7 +40,7 @@ function GalleryAdmin() {
 
   const isHost = !!user && !!event && event.host_id === user.id;
 
-  const { data: photos, isLoading: photosLoading } = useQuery({
+  const { data: photos, isLoading: photosLoading, error: photosError } = useQuery({
     queryKey: ["gallery-admin", id, isHost],
     enabled: !!user && !!event && isHost,
     queryFn: async () => {
@@ -50,10 +60,15 @@ function GalleryAdmin() {
 
   useEffect(() => { if (!loading && !user) nav({ to: "/login" }); }, [loading, user, nav]);
 
-  if (loading || (!user && !loading)) return <div className="container mx-auto max-w-5xl px-4 py-10 text-muted-foreground">Loading…</div>;
-  if (eventError) return <div className="container mx-auto max-w-5xl px-4 py-10 text-center"><p className="text-destructive">{(eventError as Error).message}</p></div>;
-  if (eventLoading || !event) return <div className="container mx-auto max-w-5xl px-4 py-10 text-muted-foreground">Loading event…</div>;
-  if (!isHost) return <div className="container mx-auto max-w-5xl px-4 py-10 text-center"><p className="text-muted-foreground">You don't have access to moderate this gallery.</p></div>;
+  if (loading) return <RouteState title="Loading gallery…" />;
+  if (!user) return <RouteState title="Redirecting to sign in…" />;
+  if (eventError) {
+    const message = (eventError as Error).message;
+    return <RouteState title={message === "Event not found" ? "Event not found" : "Couldn't load gallery"} message={message === "Event not found" ? "This event may have been removed or is unavailable." : message || "A network or server error occurred."} />;
+  }
+  if (eventLoading || !event) return <RouteState title="Loading event…" />;
+  if (!isHost) return <RouteState title="Permission denied" message="You don't have access to moderate this gallery." action={<Link to="/events/$id" params={{ id }}><Button variant="outline">View event</Button></Link>} />;
+  if (photosError) return <RouteState title="Couldn't load photos" message={(photosError as Error).message || "A network or server error occurred."} />;
 
   const setStatus = async (photoId: string, status: "approved" | "rejected") => {
     const { error } = await supabase.from("event_photos")
@@ -82,6 +97,8 @@ function GalleryAdmin() {
         </div>
         <Link to="/events/$id" params={{ id }}><Button variant="outline" size="sm">View event</Button></Link>
       </div>
+
+      {photosLoading && <p className="mt-8 text-sm text-muted-foreground">Loading photos…</p>}
 
       <Section title={`Pending (${pending.length})`}>
         {pending.length === 0 && <Empty />}

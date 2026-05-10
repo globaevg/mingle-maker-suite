@@ -1,0 +1,5 @@
+name,email,RSVP status,check-in time
+"Alice Chen","alice@demo.app","confirmed","2026-05-08 18:32:14"
+"Bob Singh","bob@demo.app","confirmed","2026-05-08 18:34:02"
+"Cara Kim","cara@demo.app","waitlist",""
+"Diego Ortiz","diego@demo.app","cancelled",""

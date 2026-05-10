@@ -8,8 +8,10 @@
 - **Lovable Cloud (Supabase)** for Postgres, Auth, Storage, RLS.
 - **Postgres triggers + security-definer functions** for capacity/waitlist logic and role checks (avoids RLS recursion).
 - **`qrcode.react`** for ticket QR rendering.
-- **CSV export** built client-side from RSVP queries.
+- **CSV export** via authenticated server route (`src/routes/api/export-attendees.ts`) using the Supabase service role + bearer-token verification, emitting UTF-8 BOM + CRLF + fully-quoted fields.
 - **Storage bucket `event-photos`** with per-user folder upload policies.
+- **Layout route + `<Outlet />` pattern** for `/events/$id` so child routes (`/edit`, `/gallery`, `/check-in`) mount reliably; parent loader data is shared via `getRouteApi(...).useLoaderData()`.
+- **Resilient two-step loaders** (`fetch event` → `fetch host profile`) with `query-timeout` helper to guarantee no infinite "Loading…" state.
 
 ## What worked
 
@@ -26,6 +28,11 @@
 - **Early CHECK constraints with `now()`** (e.g. invite expiry) were rejected by Postgres because CHECK must be immutable. Replaced with validation triggers.
 - **Attempted to filter hidden events purely in the UI**; switched to a server-side `is_hidden` filter in `explore` queries so the hidden state is enforced regardless of client.
 - **First gallery upload flow** allowed any authenticated user to upload anywhere — tightened to require a confirmed RSVP and a path beginning with `auth.uid()`.
+- **Nested `event + profile` Supabase select** (`events?select=*,profiles(...)`) returned 400s due to relation alias assumptions. Replaced with two sequential queries; UI now renders partial state if the host profile fails.
+- **Event creation 403** for valid hosts — caused by an RLS policy that referenced `host_members` recursively. Fixed via a `is_team_host()` security-definer helper used in the `events` INSERT policy.
+- **Child routes `/edit` and `/gallery` resolved to the detail view.** Refactored `events.$id.tsx` into a layout with `<Outlet />` and moved detail UI to `events.$id.index.tsx`; gallery moderation extracted to a dedicated component with a path-based fallback guard.
+- **CSV export 401 + `data.map is not a function`.** Replaced the client-only query with a dedicated server route that verifies the bearer token and host membership before streaming the CSV.
+- **Checker demo login failed** under HIBP password policy. Reset demo credentials and re-enabled HIBP; `host@`, `alice@`, `ivan@`, `mila@ demo.app` now sign in cleanly.
 
 ## Notable decisions
 
@@ -46,3 +53,4 @@
 - **No soft-delete / audit log** on events or RSVPs.
 - **Reports moderation is binary** (hide / dismiss). No appeals, no reporter notifications.
 - **Timezone handling** stores UTC and renders in the browser locale; no per-event timezone field.
+- **Paid events** are scaffolded as a Free/Paid toggle in the editor but the Paid option is disabled ("Coming soon") — no payments integration yet.

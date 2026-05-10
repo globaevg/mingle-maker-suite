@@ -9,8 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Download, Plus, Ticket } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { getAttendeesForExport } from "@/lib/attendees.functions";
 
 export const Route = createFileRoute("/dashboard")({ component: Dashboard });
 

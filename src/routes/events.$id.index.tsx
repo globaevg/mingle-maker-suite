@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, getRouteApi } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, getRouteApi, useLocation } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -11,6 +11,7 @@ import { EventFeedback } from "@/components/EventFeedback";
 import { EventGallery } from "@/components/EventGallery";
 import { ReportButton } from "@/components/ReportButton";
 import { AddToCalendarButton } from "@/components/AddToCalendarButton";
+import { GalleryModeration } from "@/components/GalleryModeration";
 import { withTimeout } from "@/lib/query-timeout";
 
 export const Route = createFileRoute("/events/$id/")({ component: EventPage });
@@ -19,10 +20,15 @@ const parentRoute = getRouteApi("/events/$id");
 
 function EventPage() {
   const { id } = Route.useParams();
+  const location = useLocation();
   const loaderData = parentRoute.useLoaderData();
   const { user } = useAuth();
   const qc = useQueryClient();
   const nav = useNavigate();
+
+  if (location.pathname.endsWith(`/events/${id}/gallery`)) {
+    return <GalleryModeration eventId={id} />;
+  }
 
   const { data: event, isLoading: eventLoading, error: eventError } = useQuery({
     queryKey: ["event", id],

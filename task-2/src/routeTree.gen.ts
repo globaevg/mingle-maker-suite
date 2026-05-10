@@ -14,6 +14,7 @@ import { Route as TeamRouteImport } from './routes/team'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as MyEventsRouteImport } from './routes/my-events'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -23,6 +24,8 @@ import { Route as HostsIdRouteImport } from './routes/hosts.$id'
 import { Route as EventsNewRouteImport } from './routes/events.new'
 import { Route as EventsIdRouteImport } from './routes/events.$id'
 import { Route as CheckinEventIdRouteImport } from './routes/checkin.$eventId'
+import { Route as ApiExportAttendeesRouteImport } from './routes/api/export-attendees'
+import { Route as EventsIdIndexRouteImport } from './routes/events.$id.index'
 import { Route as EventsIdGalleryRouteImport } from './routes/events.$id.gallery'
 import { Route as EventsIdEditRouteImport } from './routes/events.$id.edit'
 
@@ -49,6 +52,11 @@ const ReportsRoute = ReportsRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyEventsRoute = MyEventsRouteImport.update({
+  id: '/my-events',
+  path: '/my-events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -96,6 +104,16 @@ const CheckinEventIdRoute = CheckinEventIdRouteImport.update({
   path: '/checkin/$eventId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiExportAttendeesRoute = ApiExportAttendeesRouteImport.update({
+  id: '/api/export-attendees',
+  path: '/api/export-attendees',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsIdIndexRoute = EventsIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EventsIdRoute,
+} as any)
 const EventsIdGalleryRoute = EventsIdGalleryRouteImport.update({
   id: '/gallery',
   path: '/gallery',
@@ -112,11 +130,13 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/login': typeof LoginRoute
+  '/my-events': typeof MyEventsRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
   '/signup': typeof SignupRoute
   '/team': typeof TeamRoute
   '/tickets': typeof TicketsRoute
+  '/api/export-attendees': typeof ApiExportAttendeesRoute
   '/checkin/$eventId': typeof CheckinEventIdRoute
   '/events/$id': typeof EventsIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
@@ -124,24 +144,27 @@ export interface FileRoutesByFullPath {
   '/invite/$token': typeof InviteTokenRoute
   '/events/$id/edit': typeof EventsIdEditRoute
   '/events/$id/gallery': typeof EventsIdGalleryRoute
+  '/events/$id/': typeof EventsIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/login': typeof LoginRoute
+  '/my-events': typeof MyEventsRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
   '/signup': typeof SignupRoute
   '/team': typeof TeamRoute
   '/tickets': typeof TicketsRoute
+  '/api/export-attendees': typeof ApiExportAttendeesRoute
   '/checkin/$eventId': typeof CheckinEventIdRoute
-  '/events/$id': typeof EventsIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/hosts/$id': typeof HostsIdRoute
   '/invite/$token': typeof InviteTokenRoute
   '/events/$id/edit': typeof EventsIdEditRoute
   '/events/$id/gallery': typeof EventsIdGalleryRoute
+  '/events/$id': typeof EventsIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -149,11 +172,13 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/login': typeof LoginRoute
+  '/my-events': typeof MyEventsRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
   '/signup': typeof SignupRoute
   '/team': typeof TeamRoute
   '/tickets': typeof TicketsRoute
+  '/api/export-attendees': typeof ApiExportAttendeesRoute
   '/checkin/$eventId': typeof CheckinEventIdRoute
   '/events/$id': typeof EventsIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
@@ -161,6 +186,7 @@ export interface FileRoutesById {
   '/invite/$token': typeof InviteTokenRoute
   '/events/$id/edit': typeof EventsIdEditRoute
   '/events/$id/gallery': typeof EventsIdGalleryRoute
+  '/events/$id/': typeof EventsIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -169,11 +195,13 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/explore'
     | '/login'
+    | '/my-events'
     | '/profile'
     | '/reports'
     | '/signup'
     | '/team'
     | '/tickets'
+    | '/api/export-attendees'
     | '/checkin/$eventId'
     | '/events/$id'
     | '/events/new'
@@ -181,35 +209,40 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/events/$id/edit'
     | '/events/$id/gallery'
+    | '/events/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dashboard'
     | '/explore'
     | '/login'
+    | '/my-events'
     | '/profile'
     | '/reports'
     | '/signup'
     | '/team'
     | '/tickets'
+    | '/api/export-attendees'
     | '/checkin/$eventId'
-    | '/events/$id'
     | '/events/new'
     | '/hosts/$id'
     | '/invite/$token'
     | '/events/$id/edit'
     | '/events/$id/gallery'
+    | '/events/$id'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/explore'
     | '/login'
+    | '/my-events'
     | '/profile'
     | '/reports'
     | '/signup'
     | '/team'
     | '/tickets'
+    | '/api/export-attendees'
     | '/checkin/$eventId'
     | '/events/$id'
     | '/events/new'
@@ -217,6 +250,7 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/events/$id/edit'
     | '/events/$id/gallery'
+    | '/events/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -224,11 +258,13 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   ExploreRoute: typeof ExploreRoute
   LoginRoute: typeof LoginRoute
+  MyEventsRoute: typeof MyEventsRoute
   ProfileRoute: typeof ProfileRoute
   ReportsRoute: typeof ReportsRoute
   SignupRoute: typeof SignupRoute
   TeamRoute: typeof TeamRoute
   TicketsRoute: typeof TicketsRoute
+  ApiExportAttendeesRoute: typeof ApiExportAttendeesRoute
   CheckinEventIdRoute: typeof CheckinEventIdRoute
   EventsIdRoute: typeof EventsIdRouteWithChildren
   EventsNewRoute: typeof EventsNewRoute
@@ -271,6 +307,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-events': {
+      id: '/my-events'
+      path: '/my-events'
+      fullPath: '/my-events'
+      preLoaderRoute: typeof MyEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -336,6 +379,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckinEventIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/export-attendees': {
+      id: '/api/export-attendees'
+      path: '/api/export-attendees'
+      fullPath: '/api/export-attendees'
+      preLoaderRoute: typeof ApiExportAttendeesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events/$id/': {
+      id: '/events/$id/'
+      path: '/'
+      fullPath: '/events/$id/'
+      preLoaderRoute: typeof EventsIdIndexRouteImport
+      parentRoute: typeof EventsIdRoute
+    }
     '/events/$id/gallery': {
       id: '/events/$id/gallery'
       path: '/gallery'
@@ -356,11 +413,13 @@ declare module '@tanstack/react-router' {
 interface EventsIdRouteChildren {
   EventsIdEditRoute: typeof EventsIdEditRoute
   EventsIdGalleryRoute: typeof EventsIdGalleryRoute
+  EventsIdIndexRoute: typeof EventsIdIndexRoute
 }
 
 const EventsIdRouteChildren: EventsIdRouteChildren = {
   EventsIdEditRoute: EventsIdEditRoute,
   EventsIdGalleryRoute: EventsIdGalleryRoute,
+  EventsIdIndexRoute: EventsIdIndexRoute,
 }
 
 const EventsIdRouteWithChildren = EventsIdRoute._addFileChildren(
@@ -372,11 +431,13 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   ExploreRoute: ExploreRoute,
   LoginRoute: LoginRoute,
+  MyEventsRoute: MyEventsRoute,
   ProfileRoute: ProfileRoute,
   ReportsRoute: ReportsRoute,
   SignupRoute: SignupRoute,
   TeamRoute: TeamRoute,
   TicketsRoute: TicketsRoute,
+  ApiExportAttendeesRoute: ApiExportAttendeesRoute,
   CheckinEventIdRoute: CheckinEventIdRoute,
   EventsIdRoute: EventsIdRouteWithChildren,
   EventsNewRoute: EventsNewRoute,

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { QRCodeSVG } from "qrcode.react";
 import { Calendar, MapPin, Ticket } from "lucide-react";
 import { format } from "date-fns";
+import { AddToCalendarButton } from "@/components/AddToCalendarButton";
 
 export const Route = createFileRoute("/tickets")({ component: TicketsPage });
 
@@ -22,10 +23,11 @@ function TicketsPage() {
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase.from("rsvps")
-        .select("id, status, ticket_code, checked_in_at, promoted_at, events(id, title, starts_at, location, ends_at)")
+        .select("id, status, ticket_code, checked_in_at, promoted_at, created_at, events!inner(id, title, starts_at, location, ends_at)")
         .eq("user_id", user!.id)
         .neq("status", "cancelled")
-        .order("created_at", { ascending: false });
+        .gte("events.ends_at", new Date().toISOString())
+        .order("starts_at", { foreignTable: "events", ascending: true });
       if (error) throw error;
       return data as any[];
     },
@@ -69,6 +71,16 @@ function TicketsPage() {
                 <Ticket className="h-4 w-4 text-accent" />{r.ticket_code}
               </div>
               {r.checked_in_at && <p className="mt-2 text-xs text-accent">Checked in {format(new Date(r.checked_in_at), "PPp")}</p>}
+              <div className="mt-3">
+                <AddToCalendarButton event={{
+                  uid: r.events.id,
+                  title: r.events.title,
+                  description: "",
+                  location: r.events.location || "",
+                  startsAt: r.events.starts_at,
+                  endsAt: r.events.ends_at,
+                }} />
+              </div>
             </div>
           </div>
         ))}

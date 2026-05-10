@@ -81,10 +81,15 @@ export type Database = {
           host_id: string
           id: string
           is_hidden: boolean
+          is_paid: boolean
           location: string
+          online_url: string | null
+          publish_state: Database["public"]["Enums"]["event_publish_state"]
           starts_at: string
+          timezone: string
           title: string
           updated_at: string
+          visibility: Database["public"]["Enums"]["event_visibility"]
         }
         Insert: {
           capacity?: number
@@ -95,10 +100,15 @@ export type Database = {
           host_id: string
           id?: string
           is_hidden?: boolean
+          is_paid?: boolean
           location?: string
+          online_url?: string | null
+          publish_state?: Database["public"]["Enums"]["event_publish_state"]
           starts_at: string
+          timezone?: string
           title: string
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["event_visibility"]
         }
         Update: {
           capacity?: number
@@ -109,10 +119,15 @@ export type Database = {
           host_id?: string
           id?: string
           is_hidden?: boolean
+          is_paid?: boolean
           location?: string
+          online_url?: string | null
+          publish_state?: Database["public"]["Enums"]["event_publish_state"]
           starts_at?: string
+          timezone?: string
           title?: string
           updated_at?: string
+          visibility?: Database["public"]["Enums"]["event_visibility"]
         }
         Relationships: []
       }
@@ -177,6 +192,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          contact_email: string | null
           created_at: string
           display_name: string
           id: string
@@ -185,6 +201,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          contact_email?: string | null
           created_at?: string
           display_name?: string
           id: string
@@ -193,6 +210,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          contact_email?: string | null
           created_at?: string
           display_name?: string
           id?: string
@@ -315,9 +333,16 @@ export type Database = {
         Args: { _event_id: string; _user_id: string }
         Returns: boolean
       }
+      is_team_host: {
+        Args: { _owner: string; _user: string }
+        Returns: boolean
+      }
       promote_waitlist: { Args: { _event_id: string }; Returns: undefined }
+      undo_checkin: { Args: { _rsvp_id: string }; Returns: undefined }
     }
     Enums: {
+      event_publish_state: "draft" | "published"
+      event_visibility: "public" | "unlisted"
       host_member_role: "host" | "checker"
       photo_status: "pending" | "approved" | "rejected"
       report_status: "pending" | "reviewed" | "dismissed"
@@ -450,6 +475,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      event_publish_state: ["draft", "published"],
+      event_visibility: ["public", "unlisted"],
       host_member_role: ["host", "checker"],
       photo_status: ["pending", "approved", "rejected"],
       report_status: ["pending", "reviewed", "dismissed"],

@@ -132,12 +132,24 @@ function HostedEventCard({ event }: { event: any }) {
   const [code, setCode] = useState("");
   const [open, setOpen] = useState(false);
 
+  const { data: stats } = useQuery({
+    queryKey: ["event-stats", event.id],
+    queryFn: async () => {
+      const [{ count: going }, { count: waitlist }, { count: checked }] = await Promise.all([
+        supabase.from("rsvps").select("*", { count: "exact", head: true }).eq("event_id", event.id).eq("status", "confirmed"),
+        supabase.from("rsvps").select("*", { count: "exact", head: true }).eq("event_id", event.id).eq("status", "waitlist"),
+        supabase.from("rsvps").select("*", { count: "exact", head: true }).eq("event_id", event.id).not("checked_in_at", "is", null),
+      ]);
+      return { going: going ?? 0, waitlist: waitlist ?? 0, checked: checked ?? 0 };
+    },
+  });
+
   const { data: rsvps } = useQuery({
     queryKey: ["rsvps", event.id],
     enabled: open,
     queryFn: async () => {
       const { data, error } = await supabase.from("rsvps")
-        .select("id, status, ticket_code, checked_in_at, created_at, user_id")
+        .select("id, status, ticket_code, checked_in_at, created_at, user_id, profiles:user_id(display_name)")
         .eq("event_id", event.id).order("created_at");
       if (error) throw error;
       return data;
@@ -148,27 +160,49 @@ function HostedEventCard({ event }: { event: any }) {
     e.preventDefault();
     const c = code.trim().toUpperCase();
     if (!c) return;
-    const { data, error } = await supabase.from("rsvps")
+    const { data: existing } = await supabase.from("rsvps")
+      .select("id, checked_in_at").eq("event_id", event.id).eq("ticket_code", c).maybeSingle();
+    if (!existing) return toast.error("Ticket not found");
+    if (existing.checked_in_at) return toast.error(`Already checked in at ${format(new Date(existing.checked_in_at), "p")}`);
+    const { error } = await supabase.from("rsvps")
       .update({ checked_in_at: new Date().toISOString() })
-      .eq("event_id", event.id).eq("ticket_code", c).select().maybeSingle();
+      .eq("id", existing.id);
     if (error) return toast.error(error.message);
-    if (!data) return toast.error("Ticket not found for this event");
     toast.success(`Checked in: ${c}`);
     setCode("");
     qc.invalidateQueries({ queryKey: ["rsvps", event.id] });
+    qc.invalidateQueries({ queryKey: ["event-stats", event.id] });
   };
 
   const exportCsv = async () => {
-    const { data, error } = await supabase.from("rsvps")
-      .select("ticket_code, status, checked_in_at, created_at").eq("event_id", event.id);
-    if (error) return toast.error(error.message);
-    const rows = [["ticket_code", "status", "checked_in_at", "created_at"], ...data.map(r => [r.ticket_code, r.status, r.checked_in_at ?? "", r.created_at])];
-    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url;
-    a.download = `${event.title.replace(/\W+/g, "-")}-attendees.csv`;
-    a.click(); URL.revokeObjectURL(url);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) { toast.error("Please sign in again"); return; }
+      const res = await fetch("/api/export-attendees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ eventId: event.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any)?.error || `Export failed (${res.status})`);
+      }
+      const { rows } = (await res.json()) as { rows: Array<{ name: string; email: string; status: string; checked_in_at: string }> };
+      const headers = ["name", "email", "RSVP status", "check-in time"];
+      const data = [
+        headers,
+        ...rows.map((r) => [r.name, r.email, r.status, r.checked_in_at ? format(new Date(r.checked_in_at), "yyyy-MM-dd HH:mm:ss") : ""]),
+      ];
+      const csv = data.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url;
+      a.download = `${event.title.replace(/\W+/g, "-")}-attendees.csv`;
+      a.click(); URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export");
+    }
   };
 
   return (
@@ -186,6 +220,11 @@ function HostedEventCard({ event }: { event: any }) {
           <Button variant="outline" size="sm" onClick={() => setOpen(!open)}>{open ? "Hide" : "Manage"}</Button>
         </div>
       </div>
+      <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+        <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Going</div><div className="font-display text-xl font-bold">{stats?.going ?? "—"}</div></div>
+        <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Waitlist</div><div className="font-display text-xl font-bold">{stats?.waitlist ?? "—"}</div></div>
+        <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Checked-in</div><div className="font-display text-xl font-bold">{stats?.checked ?? "—"}</div></div>
+      </div>
       {open && (
         <div className="mt-4 border-t pt-4">
           <form onSubmit={checkIn} className="flex gap-2">
@@ -195,17 +234,18 @@ function HostedEventCard({ event }: { event: any }) {
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-muted-foreground">
-                <th className="py-2">Ticket</th><th>Status</th><th>Checked in</th>
+                <th className="py-2">Name</th><th>Ticket</th><th>Status</th><th>Checked in</th>
               </tr></thead>
               <tbody>
-                {rsvps?.map(r => (
+                {rsvps?.map((r: any) => (
                   <tr key={r.id} className="border-t">
-                    <td className="py-2 font-mono">{r.ticket_code}</td>
+                    <td className="py-2">{r.profiles?.display_name ?? "—"}</td>
+                    <td className="font-mono">{r.ticket_code}</td>
                     <td>{r.status}</td>
                     <td>{r.checked_in_at ? format(new Date(r.checked_in_at), "p") : "—"}</td>
                   </tr>
                 ))}
-                {rsvps?.length === 0 && <tr><td colSpan={3} className="py-4 text-muted-foreground">No RSVPs yet.</td></tr>}
+                {rsvps?.length === 0 && <tr><td colSpan={4} className="py-4 text-muted-foreground">No RSVPs yet.</td></tr>}
               </tbody>
             </table>
           </div>

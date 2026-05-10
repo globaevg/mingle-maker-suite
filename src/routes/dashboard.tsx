@@ -174,17 +174,27 @@ function HostedEventCard({ event }: { event: any }) {
     qc.invalidateQueries({ queryKey: ["event-stats", event.id] });
   };
 
-  const exportAttendees = useServerFn(getAttendeesForExport);
   const exportCsv = async () => {
     try {
-      const data = await exportAttendees({ data: { eventId: event.id } });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) { toast.error("Please sign in again"); return; }
+      const res = await fetch("/api/export-attendees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ eventId: event.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any)?.error || `Export failed (${res.status})`);
+      }
+      const { rows } = (await res.json()) as { rows: Array<{ name: string; email: string; status: string; checked_in_at: string }> };
       const headers = ["name", "email", "RSVP status", "check-in time"];
-      const rows = [
+      const data = [
         headers,
-        ...data.map((r) => [r.name, r.email, r.status, r.checked_in_at ? format(new Date(r.checked_in_at), "yyyy-MM-dd HH:mm:ss") : ""]),
+        ...rows.map((r) => [r.name, r.email, r.status, r.checked_in_at ? format(new Date(r.checked_in_at), "yyyy-MM-dd HH:mm:ss") : ""]),
       ];
-      const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
-      // BOM for Excel compatibility
+      const csv = data.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
       const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url;

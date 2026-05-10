@@ -21,14 +21,19 @@ const parentRoute = getRouteApi("/events/$id");
 function EventPage() {
   const { id } = Route.useParams();
   const location = useLocation();
-  const loaderData = parentRoute.useLoaderData();
-  const { user } = useAuth();
-  const qc = useQueryClient();
-  const nav = useNavigate();
 
   if (location.pathname.endsWith(`/events/${id}/gallery`)) {
     return <GalleryModeration eventId={id} />;
   }
+
+  return <EventDetailsPage id={id} />;
+}
+
+function EventDetailsPage({ id }: { id: string }) {
+  const loaderData = parentRoute.useLoaderData();
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const nav = useNavigate();
 
   const { data: event, isLoading: eventLoading, error: eventError } = useQuery({
     queryKey: ["event", id],

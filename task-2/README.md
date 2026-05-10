@@ -1,112 +1,130 @@
-# Gather — Free Community Events
+# Gather — Usage Guide
 
-A lightweight platform for hosting and attending free community events. Hosts publish events, attendees RSVP and get a QR-coded ticket, and hosts check guests in at the door.
+A step-by-step walkthrough of the four core flows in Gather:
+**Publish → RSVP → Ticket → Check-in.**
 
-> **Demo URL:** https://mingle-maker-suite.lovable.app
->
-> **Example attendee CSV:** [`examples/attendees-example.csv`](./examples/attendees-example.csv)
->
-> **Compliance checklist:** [`CHECKLIST.md`](./CHECKLIST.md)
+> Live demo: https://mingle-maker-suite.lovable.app
+> All seeded accounts use the password **`Password123!`**.
 
----
-
-## Test accounts
-
-All seeded accounts use the password **`Password123!`**.
-
-| Role | Email | Notes |
+| Role | Email | What they can do |
 |---|---|---|
-| Host | `host@demo.app` | Owns "Ocean Collective" and all demo events |
-| Attendee | `alice@demo.app` | Confirmed RSVP + ticket |
-| Attendee | `bob@demo.app` | Confirmed RSVP + ticket |
-| Attendee | `cara@demo.app` | Waitlisted on the upcoming event |
-| Checker | `ivan@demo.app` | Can only access check-in pages |
-| Checker | `mona@demo.app` | Can only access check-in pages |
-
-The seed includes **1 upcoming** event ("Sunset Tide Pool Walk") and **3 past** events.
+| Host | `host@demo.app` | Create / edit events, moderate, check-in, export CSV |
+| Attendee | `alice@demo.app`, `bob@demo.app` | RSVP, get tickets |
+| Waitlisted | `cara@demo.app` | Sits on waitlist until a spot opens |
+| Checker | `ivan@demo.app`, `mona@demo.app` | Check-in only — no host powers |
 
 ---
 
-## Core flow: Publish → RSVP → Ticket → Check-in
+## 1. Publish an event (Host)
 
-### 1. Publish (Host)
-1. Sign in as `host@demo.app`.
-2. Open **Dashboard** in the header.
-3. Click **New event**, fill in title, description, location, start/end time, capacity, and (optional) cover URL.
-4. Save. The event is immediately public on **Explore** and at `/events/:id`.
+**Goal:** put a new event live on `/explore` and `/events/:id`.
 
-### 2. RSVP (Attendee)
-1. Sign in as any attendee account (or sign up).
-2. Open **Explore** and click an event.
-3. Click **RSVP**.
-   - If capacity is available → status `confirmed`.
-   - If full → status `waitlist` (FIFO promotion when a spot frees up or capacity grows).
+1. Go to `/login` and sign in as `host@demo.app`.
+2. Click **Dashboard** in the header.
+3. Click **New event** (top-right) → you land on `/events/new`.
+4. Fill in the form:
+   - **Title**, **description**, **location**
+   - **Start** and **End** date/time
+   - **Capacity** (integer; controls RSVP vs waitlist)
+   - **Cover image URL** (optional)
+   - **Pricing**: leave on **Free** — the **Paid** toggle is visible but disabled (“Coming soon”).
+5. Click **Create event**.
+6. You are redirected to `/events/:id`. The event is **immediately public** and appears on `/explore`.
 
-### 3. Ticket
-- Every confirmed RSVP gets a unique 8-char ticket code and QR.
-- View it at **My Tickets** (`/tickets`) or on the event page.
-- Promoted-from-waitlist users see a **Promoted** badge.
-
-### 4. Check-in (Host or Checker)
-1. Sign in as the host or a checker.
-2. From the dashboard, click **Check-in** on the event (or open `/checkin/:eventId`).
-3. Type or paste the attendee's ticket code and submit.
-4. The attendee is marked `checked_in_at = now()`. Duplicate scans are flagged.
+To change something later: open the event → **Edit** button → `/events/:id/edit`.
+To moderate uploaded photos: **Gallery** button → `/events/:id/gallery`.
 
 ---
 
-## Main pages
+## 2. RSVP (Attendee)
 
-| Path | Purpose |
-|---|---|
-| `/` | Landing page |
-| `/explore` | Public list of upcoming events |
-| `/events/:id` | Public event page — RSVP, gallery, feedback, report |
-| `/events/new` | Host: create event |
-| `/events/:id/edit` | Host: edit event |
-| `/events/:id/gallery` | Host: approve/reject submitted photos |
-| `/dashboard` | Host: events, RSVPs, check-in, CSV, gallery |
-| `/checkin/:eventId` | Host/Checker: manual code check-in |
-| `/tickets` | Attendee: my QR tickets |
-| `/hosts/:id` | Public host profile |
-| `/profile` | Edit display name + bio + register as host |
-| `/team` | Host: invite checkers via link |
-| `/invite/:token` | Accept a team invite |
-| `/reports` | Host: review reported events and photos |
-| `/login`, `/signup` | Auth |
+**Goal:** reserve a spot — confirmed if there's room, waitlisted if not.
+
+1. Sign in as `alice@demo.app` (or sign up at `/signup`).
+2. Open `/explore`.
+   - Use **Search**, **date range** (defaults to upcoming), **location**, and **Include past** to filter.
+3. Click an event card → `/events/:id`.
+4. Click **RSVP**.
+   - **Capacity remaining** → status `confirmed`, ticket issued instantly.
+   - **Capacity full** → status `waitlist`, no ticket yet.
+5. To cancel: click **Cancel RSVP** on the same page.
+
+**Waitlist promotion** is automatic and FIFO. When a confirmed attendee cancels, or the host raises capacity, the oldest waitlisted RSVP is promoted to `confirmed` and gets a ticket. The promoted attendee sees a **Promoted** badge on `/tickets`.
+
+---
+
+## 3. Ticket
+
+**Goal:** carry your QR to the door.
+
+1. After a confirmed RSVP, open **My Tickets** in the header (`/tickets`).
+2. Each ticket shows:
+   - Event title + start time
+   - **8-character ticket code**
+   - **QR code** encoding the same code
+   - **Promoted** badge if the RSVP was promoted from the waitlist
+3. The same QR/code is also visible on `/events/:id` while you are signed in and confirmed.
+
+Tickets are tied to your account and your RSVP — cancelling the RSVP invalidates the ticket.
+
+---
+
+## 4. Check-in (Host or Checker)
+
+**Goal:** mark attendees present at the door.
+
+1. Sign in as `host@demo.app` **or** as a checker (`ivan@demo.app`).
+   - Checkers can ONLY reach `/checkin/:eventId`. They cannot edit events, see exports, or moderate photos.
+2. From the dashboard (host) or directly via URL (checker), open `/checkin/:eventId`.
+3. Type or paste the attendee's **8-char ticket code** and press **Check in**.
+4. Result:
+   - **OK** → `checked_in_at = now()`, attendee appears in the checked-in list.
+   - **Already checked in** → duplicate scan flagged with the original timestamp.
+   - **Invalid / wrong event** → rejected.
+
+---
+
+## After the event
+
+- **CSV export** (Host): Dashboard → event row → **Export CSV**. The file follows the strict schema: `name,email,RSVP status,check-in time` with UTF-8 BOM, CRLF line endings, all fields quoted, empty string for attendees who never checked in. See [`examples/attendees-example.csv`](./examples/attendees-example.csv).
+- **Past events** show an **Ended** badge on `/events/:id` and the RSVP button is hidden.
+- **Photo gallery**: attendees can submit photos on the event page; the host approves or rejects them at `/events/:id/gallery`.
+- **Reports**: any user can report an event or photo via the **Report** button. Hosts review queued reports at `/reports`.
+
+---
+
+## Page map
+
+| Path | Who | Purpose |
+|---|---|---|
+| `/` | Public | Landing page |
+| `/explore` | Public | Browse events with search + filters |
+| `/events/:id` | Public | Event detail, RSVP, gallery, feedback |
+| `/events/new` | Host | Create event |
+| `/events/:id/edit` | Host | Edit event |
+| `/events/:id/gallery` | Host | Approve / reject submitted photos |
+| `/my-events` | Attendee | Events I've RSVP'd to |
+| `/tickets` | Attendee | My QR tickets |
+| `/dashboard` | Host | Events, RSVPs, CSV export, check-in links |
+| `/checkin/:eventId` | Host / Checker | Manual ticket-code check-in |
+| `/team` | Host | Invite checkers via link |
+| `/invite/:token` | Invitee | Accept a team invite |
+| `/reports` | Host | Review reported events / photos |
+| `/hosts/:id` | Public | Host profile + their events |
+| `/profile` | Signed-in | Edit name, bio, register as host |
+| `/login`, `/signup` | Public | Auth |
 
 ---
 
 ## Local setup
 
 ```bash
-# 1. Install
 bun install
-
-# 2. Environment
-# .env is auto-generated by Lovable Cloud and contains:
-#   VITE_SUPABASE_URL
-#   VITE_SUPABASE_PUBLISHABLE_KEY
-#   VITE_SUPABASE_PROJECT_ID
-
-# 3. Run
 bun run dev
+# open http://localhost:5173
 ```
 
-Open `http://localhost:5173`.
+`.env` is auto-generated by Lovable Cloud and contains
+`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`.
 
----
-
-## Supabase / Lovable Cloud setup
-
-This project uses **Lovable Cloud** (managed Supabase) — no manual project creation needed. Everything is provisioned automatically.
-
-If you fork this repo onto your own Supabase:
-
-1. Create a Supabase project, copy the URL + anon key into `.env`.
-2. Run every SQL file in `supabase/migrations/` in order (Studio → SQL editor, or `supabase db push`).
-   This creates: `profiles`, `events`, `rsvps`, `host_members`, `host_invites`, `event_feedback`, `event_photos`, `reports`, the `app_role` / `photo_status` enums, all RLS policies, the `handle_new_user` trigger, the FIFO waitlist trigger, and the `event-photos` storage bucket.
-3. Enable email/password auth. Disable email confirmation only if you want instant sign-in (not recommended in production).
-4. Optional: re-run the seed migration to populate demo accounts and events.
-
-All tables have **Row-Level Security** enabled. Hosts only see their own event data; attendees only see their own RSVPs and tickets.
+Database schema, RLS policies, and seed data live in `supabase/migrations/` and run automatically.
